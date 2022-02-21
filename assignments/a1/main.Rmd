@@ -15,6 +15,7 @@ pacman::p_load(
 )
 
 source('agent_strategies.R')
+source('games.R')
 
 ```
 
@@ -86,6 +87,11 @@ for (i in 2:trials){
 ```
 
 ```{r}
+df <- RandomAginstMemory(125, 0.5, 0.2, 5)
+```
+
+
+```{r}
 df <-tibble(matcher, mismatcher, trial =seq(trials), Feedback =as.numeric(matcher==mismatcher))
 
 ggplot(df) + 
@@ -104,6 +110,7 @@ ggplot(df) +
   geom_line(color='blue', aes(trial, cumulativeMismatcher)) +  # mismatcher
   theme_bw()
 ```
+
 
 ## WSLSAgent (mismatcher) against MemoryAgent (matcher)
 ```{r}
