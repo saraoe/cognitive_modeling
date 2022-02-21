@@ -11,15 +11,14 @@ The code for the Assignments will be in the folder ``assignments/``. The folder 
 | 4 | Apply a reinforcement learning model (Rescorla-Wagner is recommended) to one of the datasets shared in class and evaluate the model. | W13 |
 | 5 [?] | Choose a model (e.g. from HbayesDM or my recoding of the Lee and Wagnmakers models) and use the Bayesian workflow to assess parameter recovery and identify optimal experimental design. | After W13 |
 
-## Assignment 1:
+### Assignment 1:
 See folder ```assignments/a1```
 For the text, accompanying the assignment, see description in [the google docs](https://docs.google.com/document/d/1zb-AtV45-vx2DGHeZ7ZWjA_5C7Qsavs6SuY2_GykeuI/edit)
 
-## Assignment 2:
+### Assignment 2:
 
-## Assignment 3:
+### Assignment 3:
 
-## Assignment 4:
+### Assignment 4:
 
-## Assignment 5:
-s
+### Assignment 5:
