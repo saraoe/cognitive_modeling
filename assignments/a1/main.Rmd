@@ -1,0 +1,157 @@
+---
+title: "Assignment 1"
+author: "Studygroup: Johan, Simon, Emil & Sara"
+date: "16/2/2022"
+output: html_document
+---
+
+Describe and motivate two possible verbal model of how the Matching Pennies Task is solved and provide an algorithmic formalization (in R). Set them to play against randomAgent and WSLSAgent (120 trials, 100 agents). Visualize and comment the simulation.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(pacman)
+pacman::p_load(
+  tidyverse
+)
+
+source('agent_strategies.R')
+
+```
+
+
+```{r}
+trials <- 125
+d2 <- NULL
+
+for (noise in seq(0,0.5,0.1)){
+  for (rate in seq(0,1,0.1)){
+    randomChoice <- rep(NA, trials)
+    
+    for (t in seq(trials)){
+      randomChoice[t] <- RandomAgent(rate, noise)
+    }
+    
+    temp <- tibble(
+      trial = seq(trials),
+      choice = randomChoice,
+      rate,
+      noise
+    )
+    if (is.null(d2)){
+      d2 <- temp
+    } else {
+      d2 <- rbind(d2,temp)
+    }
+  }
+}
+```
+
+```{r}
+d2 <- d2 %>% group_by(rate, noise) %>% 
+  mutate(
+    cumulative = cumsum(choice) /seq_along(choice)
+  )
+
+ggplot(d2, aes(trial, cumulative, group=rate, color=rate)) +
+  geom_line() + 
+  geom_hline(yintercept=0.5, linetype='dashed') +
+  ylim(0,1) + 
+  facet_wrap(.~noise) + theme_bw()
+```
+
+## RandomAgent (mismatcher) against memoryAgent (matcher)
+```{r}
+trials <- 125
+rate <- 0.5
+noise <- 0.2
+mem_contraint <- 5
+
+matcher <- rep(NA, trials)
+mismatcher <- rep(NA, trials)
+
+matcher[1] <- RandomAgent(0.5,0)
+
+# choices of the random agent
+for (t in seq(trials)){
+  mismatcher[t] <- RandomAgent(rate, noise)
+}
+
+# choices of memory agent
+memory <- c(mismatcher[1])  # initialize memory
+for (i in 2:trials){
+  matcher[i] <- MemoryAgent(memory, mem_contraint, noise)
+  memory <- c(mismatcher[i], memory)
+}
+
+```
+
+```{r}
+df <-tibble(matcher, mismatcher, trial =seq(trials), Feedback =as.numeric(matcher==mismatcher))
+
+ggplot(df) + 
+  geom_line(color='red', aes(trial, matcher)) +  # matcher
+  geom_line(color='blue', aes(trial, mismatcher)) +  # mismatcher
+  theme_bw()
+```
+```{r}
+df <- df %>% mutate(
+  cumulativeMatcher = cumsum(Feedback)/seq_along(Feedback),
+  cumulativeMismatcher = cumsum(1-Feedback)/seq_along(Feedback)
+)
+
+ggplot(df) + 
+  geom_line(color='red', aes(trial, cumulativeMatcher)) +  # matcher
+  geom_line(color='blue', aes(trial, cumulativeMismatcher)) +  # mismatcher
+  theme_bw()
+```
+
+## WSLSAgent (mismatcher) against MemoryAgent (matcher)
+```{r}
+trials <- 125
+noise <- 0.0
+mem_contraint <- 125
+
+matcher <- rep(NA, trials)
+mismatcher <- rep(NA, trials)
+
+matcher[1] <- RandomAgent(0.5,0)
+mismatcher[1] <- RandomAgent(0.5,0)
+
+memory <- c(mismatcher[1])  # initialize memory
+
+for (i in 2:trials){
+  # choice of memory agent (matcher)
+  matcher[i] <- MemoryAgent(memory, mem_contraint, noise)
+  # choice of WSLS agent (mismatcher)
+  if (mismatcher[i-1]==matcher[i-1]){
+    Feedback <- 1
+  } else {
+    Feedback <- 0
+  }
+  mismatcher[i] <- WSLSAgent(mismatcher[i-1], 1-Feedback, noise)
+  # update memory
+  memory <- c(memory, mismatcher[i])
+}
+
+```
+
+```{r}
+df <-tibble(matcher, mismatcher, trial =seq(trials), Feedback =as.numeric(matcher==mismatcher))
+
+ggplot(df) + 
+  geom_line(color='red', aes(trial, matcher)) +  # matcher
+  geom_line(color='blue', aes(trial, mismatcher)) +  # mismatcher
+  theme_bw()
+```
+
+```{r}
+df <- df %>% mutate(
+  cumulativeMatcher = cumsum(Feedback)/seq_along(Feedback),
+  cumulativeMismatcher = cumsum(1-Feedback)/seq_along(Feedback)
+)
+
+ggplot(df) + 
+  geom_line(color='red', aes(trial, cumulativeMatcher)) +  # matcher
+  geom_line(color='blue', aes(trial, cumulativeMismatcher)) +  # mismatcher
+  theme_bw()
+```
