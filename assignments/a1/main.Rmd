@@ -19,7 +19,7 @@ source('games.R')
 
 ```
 
-
+## Random Agent
 ```{r}
 trials <- 125
 d2 <- NULL
@@ -61,90 +61,90 @@ ggplot(d2, aes(trial, cumulative, group=rate, color=rate)) +
 ```
 
 ## RandomAgent (mismatcher) against memoryAgent (matcher)
+
+One round
 ```{r}
 trials <- 125
 rate <- 0.5
 noise <- 0.2
-mem_contraint <- 5
+mem_constraint <- 5
 
-matcher <- rep(NA, trials)
-mismatcher <- rep(NA, trials)
+df <- RandomAginstMemory(trials, rate, noise, mem_constraint)
 
-matcher[1] <- RandomAgent(0.5,0)
-
-# choices of the random agent
-for (t in seq(trials)){
-  mismatcher[t] <- RandomAgent(rate, noise)
-}
-
-# choices of memory agent
-memory <- c(mismatcher[1])  # initialize memory
-for (i in 2:trials){
-  matcher[i] <- MemoryAgent(memory, mem_contraint, noise)
-  memory <- c(mismatcher[i], memory)
-}
-
-```
-
-```{r}
-df <- RandomAginstMemory(125, 0.5, 0.2, 5)
 ```
 
 
 ```{r}
-df <-tibble(matcher, mismatcher, trial =seq(trials), Feedback =as.numeric(matcher==mismatcher))
-
 ggplot(df) + 
   geom_line(color='red', aes(trial, matcher)) +  # matcher
   geom_line(color='blue', aes(trial, mismatcher)) +  # mismatcher
   theme_bw()
 ```
 ```{r}
-df <- df %>% mutate(
-  cumulativeMatcher = cumsum(Feedback)/seq_along(Feedback),
-  cumulativeMismatcher = cumsum(1-Feedback)/seq_along(Feedback)
-)
-
 ggplot(df) + 
   geom_line(color='red', aes(trial, cumulativeMatcher)) +  # matcher
   geom_line(color='blue', aes(trial, cumulativeMismatcher)) +  # mismatcher
   theme_bw()
+```
+100 rounds with different parameter values
+```{r}
+# j <- 0
+# for (i in 1:100){  # number of repetions
+#   for(r in seq(0,1,0.2)){  # rate
+#     for (n in seq(0,0.5,0.2)){  # noise
+#       for (m in seq(5,125,30)){  # memory constraint
+#         tmp <- RandomAginstMemory(
+#           trials = 120,
+#           rate = r,
+#           noise = n,
+#           mem_constraint= m
+#         )
+#         
+#         tmp$rate <- r
+#         tmp$noise <- n
+#         tmp$mem_constraint <- m
+#         
+#         if (i ==1){ # first round
+#           df <- tmp
+#         } else {
+#           df <- rbind(df, tmp)
+#         }
+#         
+#         # print statement
+#         if (i != j){
+#           print(paste('Round:', i))
+#         }
+#         j <- i
+#       }
+#     }
+#   }
+# }
+
+# write_csv(df, "RandomAginstMemory.csv")
+```
+
+```{r}
+df <- read_csv('RandomAginstMemory.csv')
+
+df %>% group_by(rate, mem_constraint, noise) %>% 
+  summarize(
+    mean(Feedback)
+  )
 ```
 
 
 ## WSLSAgent (mismatcher) against MemoryAgent (matcher)
+
+One round
 ```{r}
 trials <- 125
 noise <- 0.0
-mem_contraint <- 125
+mem_constraint <- 125
 
-matcher <- rep(NA, trials)
-mismatcher <- rep(NA, trials)
-
-matcher[1] <- RandomAgent(0.5,0)
-mismatcher[1] <- RandomAgent(0.5,0)
-
-memory <- c(mismatcher[1])  # initialize memory
-
-for (i in 2:trials){
-  # choice of memory agent (matcher)
-  matcher[i] <- MemoryAgent(memory, mem_contraint, noise)
-  # choice of WSLS agent (mismatcher)
-  if (mismatcher[i-1]==matcher[i-1]){
-    Feedback <- 1
-  } else {
-    Feedback <- 0
-  }
-  mismatcher[i] <- WSLSAgent(mismatcher[i-1], 1-Feedback, noise)
-  # update memory
-  memory <- c(memory, mismatcher[i])
-}
-
+df <- WSLSAginstMemory(trials, noise, mem_constraint)
 ```
 
 ```{r}
-df <-tibble(matcher, mismatcher, trial =seq(trials), Feedback =as.numeric(matcher==mismatcher))
-
 ggplot(df) + 
   geom_line(color='red', aes(trial, matcher)) +  # matcher
   geom_line(color='blue', aes(trial, mismatcher)) +  # mismatcher
@@ -152,13 +152,92 @@ ggplot(df) +
 ```
 
 ```{r}
-df <- df %>% mutate(
-  cumulativeMatcher = cumsum(Feedback)/seq_along(Feedback),
-  cumulativeMismatcher = cumsum(1-Feedback)/seq_along(Feedback)
-)
-
 ggplot(df) + 
   geom_line(color='red', aes(trial, cumulativeMatcher)) +  # matcher
   geom_line(color='blue', aes(trial, cumulativeMismatcher)) +  # mismatcher
   theme_bw()
 ```
+
+100 rounds with different parameter values
+```{r}
+# j <- 0
+# for (i in 1:100){  # number of repetions
+#   for (n in seq(0,0.5,0.2)){  # noise
+#     for (m in seq(5,125,30)){  # memory constraint
+#       tmp <- WSLSAginstMemory(
+#         trials = 120,
+#         noise = n,
+#         mem_constraint= m
+#       )
+#       
+#       tmp$noise <- n
+#       tmp$mem_constraint <- m
+#       
+#       if (i ==1){ # first round
+#         df <- tmp
+#       } else {
+#         df <- rbind(df, tmp)
+#       }
+#       
+#       # print statement
+#       if (i != j){
+#         print(paste('Round:', i))
+#       }
+#       j <- i
+#     }
+#   }
+# }
+
+# write_csv(df, "WSLSAginstMemory.csv")
+```
+
+```{r}
+df <- read_csv('WSLSAginstMemory.csv')
+
+df %>% group_by(mem_constraint, noise) %>% 
+  summarize(
+    mean(Feedback),
+    sd(Feedback)
+  )
+```
+
+```{r}
+df_plot <- df %>% group_by(trial, noise, mem_constraint) %>% 
+  summarize(
+    cumulativeMatcher = mean(cumsum(Feedback)/seq_along(Feedback))
+  )
+
+ggplot(data=df_plot, aes(x=trial, y=cumulativeMatcher, color=as.factor(noise))) + 
+  geom_line() + 
+  facet_wrap(.~mem_constraint) + 
+  theme_bw() + labs(color='Noise') + scale_color_brewer(palette = 'Accent')
+```
+
+## Compare different strategies
+```{r}
+df_random <- read_csv('RandomAginstMemory.csv') %>% group_by(trial) %>% 
+  summarize(
+    cumulativeMatcher = mean(cumsum(Feedback)/seq_along(Feedback)),
+    sd = sd(cumsum(Feedback)/seq_along(Feedback)),
+    opponent = 'Random',
+    player = 'Memory'
+  )
+
+df_WSLS <- read_csv('WSLSAginstMemory.csv') %>% group_by(trial) %>% 
+  summarize(
+    cumulativeMatcher = mean(cumsum(Feedback)/seq_along(Feedback)),
+    sd = sd(cumsum(Feedback)/seq_along(Feedback)),
+    opponent = 'WSLS',
+    player = 'Memory'
+  )
+
+df_plot <- rbind(df_random, df_WSLS)
+```
+
+```{r}
+ggplot(data=df_plot, aes(x=trial, y=cumulativeMatcher, color=opponent)) + 
+  geom_ribbon(aes(ymin=cumulativeMatcher-sd, ymax=cumulativeMatcher+sd), alpha=0.1, linetype=0) + 
+  geom_line(size=1) + 
+  theme_bw() + labs(color='Opponent') + scale_color_brewer(palette = 'Accent')
+```
+
