@@ -228,7 +228,7 @@ df_plot <- df %>% group_by(trial, noise) %>%
 ggplot(data=df_plot, aes(x=trial, y=cumulativeMatcher, color=as.factor(noise))) + 
   geom_ribbon(aes(ymin=cumulativeMatcher-sd, ymax=cumulativeMatcher+sd), alpha=0.1, linetype=0) + 
   geom_line(size=1) + 
-  theme_bw() + labs(title = 'Memory agent (matcher) against WSLS probability agent', color='Noise') + scale_color_brewer(palette = 'Accent')
+  theme_bw() + labs(title = 'Memory agent (matcher) against WSLS agent', color='Noise') + scale_color_brewer(palette = 'Accent')
 ```
 
 
