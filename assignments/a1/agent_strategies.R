@@ -28,34 +28,19 @@ WSLSAgent <- function(prevChoice, feedback, noise){
   return(choice)
 }
 
-# keep track of bias
-# MemoryAgent <- function(othersChoice, learningRate, noise){
-#   if(othersChoice==1){
-#     memory = (1-learningRate)*memory + learningRate*1
-#   } else if (othersChoice==0){
-#     memory = (1-learningRate)*memory + learningRate*0
-#   }
-#   
-#   choice = rbinom(1,1,memory)
-#   
-#   if(rbinom(1, 1, noise)==1){  # noise
-#     choice = rbinom(1,1,0.5)
-#   }
-#   
-#   return(choice)
-# }
+# WSLS with probability
+WSLSAgent_prob <- function(prevChoice, Feedback, Prob, noise){
+  if (Feedback == 1){
+    choice = sample(c(prevChoice, 1 - prevChoice), size = 1, replace = TRUE, prob = c(Prob, 1 - Prob))
+  } else if (Feedback == 0) {
+    choice = sample(c(prevChoice, 1 - prevChoice), size = 1, replace = TRUE, prob = c(1- Prob, Prob)) }
+  
+  if(rbinom(1, 1, noise)==1){  # noise
+    choice <- rbinom(1,1,0.5)
+  }
+  return(choice) }
 
-# MemoryAgent <- function(othersChoice, memory, N, noise){
-#   memory <- memory+othersChoice
-#   
-#   choice <- rbinom(1,1,memory/N)
-#   
-#   if(rbinom(1, 1, noise)==1){  # noise
-#     choice <- rbinom(1,1,0.5)
-#   }
-#   
-#   return(c(choice, memory))
-
+# memory agent
 MemoryAgent <- function(memory, mem_contraint, noise){
   if (mem_contraint < length(memory)){
     index <-length(memory) - mem_contraint
