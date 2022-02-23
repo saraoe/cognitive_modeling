@@ -7,6 +7,8 @@ output: html_document
 
 Describe and motivate two possible verbal model of how the Matching Pennies Task is solved and provide an algorithmic formalization (in R). Set them to play against randomAgent and WSLSAgent (120 trials, 100 agents). Visualize and comment the simulation.
 
+The algorithmic formalization fo the agent strategies are in agent_strategies.R, and the functions for having the agents play against each other are in games.R.
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(pacman)
@@ -69,7 +71,7 @@ rate <- 0.5
 noise <- 0.2
 mem_constraint <- 5
 
-df <- RandomAginstMemory(trials, rate, noise, mem_constraint)
+df <- RandomAgainstMemory(trials, rate, noise, mem_constraint)
 
 ```
 
@@ -93,7 +95,7 @@ ggplot(df) +
 #   for(r in seq(0,1,0.2)){  # rate
 #     for (n in seq(0,0.5,0.2)){  # noise
 #       for (m in seq(5,125,30)){  # memory constraint
-#         tmp <- RandomAginstMemory(
+#         tmp <- RandomAgainstMemory(
 #           trials = 120,
 #           rate = r,
 #           noise = n,
@@ -120,11 +122,11 @@ ggplot(df) +
 #   }
 # }
 
-# write_csv(df, "RandomAginstMemory.csv")
+# write_csv(df, "RandomAgainstMemory.csv")
 ```
 
 ```{r}
-df <- read_csv('RandomAginstMemory.csv')
+df <- read_csv('RandomAgainstMemory.csv')
 
 df %>% group_by(rate, mem_constraint, noise) %>% 
   summarize(
@@ -141,7 +143,7 @@ trials <- 125
 noise <- 0.0
 mem_constraint <- 125
 
-df <- WSLSAginstMemory(trials, noise, mem_constraint)
+df <- WSLSAgainstMemory(trials, noise, mem_constraint)
 ```
 
 ```{r}
@@ -164,7 +166,7 @@ ggplot(df) +
 # for (i in 1:100){  # number of repetions
 #   for (n in seq(0,0.5,0.2)){  # noise
 #     for (m in seq(5,125,30)){  # memory constraint
-#       tmp <- WSLSAginstMemory(
+#       tmp <- WSLSAgainstMemory(
 #         trials = 120,
 #         noise = n,
 #         mem_constraint= m
@@ -188,11 +190,11 @@ ggplot(df) +
 #   }
 # }
 
-# write_csv(df, "WSLSAginstMemory.csv")
+# write_csv(df, "WSLSAgainstMemory.csv")
 ```
 
 ```{r}
-df <- read_csv('WSLSAginstMemory.csv')
+df <- read_csv('WSLSAgainstMemory.csv')
 
 df %>% group_by(mem_constraint, noise) %>% 
   summarize(
@@ -215,7 +217,7 @@ ggplot(data=df_plot, aes(x=trial, y=cumulativeMatcher, color=as.factor(noise))) 
 
 ## Compare different strategies
 ```{r}
-df_random <- read_csv('RandomAginstMemory.csv') %>% group_by(trial) %>% 
+df_random <- read_csv('RandomAgainstMemory.csv') %>% group_by(trial) %>% 
   summarize(
     cumulativeMatcher = mean(cumsum(Feedback)/seq_along(Feedback)),
     sd = sd(cumsum(Feedback)/seq_along(Feedback)),
@@ -223,7 +225,7 @@ df_random <- read_csv('RandomAginstMemory.csv') %>% group_by(trial) %>%
     player = 'Memory'
   )
 
-df_WSLS <- read_csv('WSLSAginstMemory.csv') %>% group_by(trial) %>% 
+df_WSLS <- read_csv('WSLSAgainstMemory.csv') %>% group_by(trial) %>% 
   summarize(
     cumulativeMatcher = mean(cumsum(Feedback)/seq_along(Feedback)),
     sd = sd(cumsum(Feedback)/seq_along(Feedback)),
