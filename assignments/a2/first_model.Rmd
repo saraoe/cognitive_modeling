@@ -1,0 +1,90 @@
+---
+title: "first_model"
+author: "Sara Østergaard"
+date: "23/2/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(pacman)
+pacman::p_load(
+  tidyverse,
+  here,
+  posterior,
+  cmdstanr,
+  brms
+)
+```
+
+## data
+```{r}
+df <- read_csv('C:/Users/Sara/Documents/8semester/cognitive_modeling/cognitive_modeling/assignments/a1/RandomAgainstMemory.csv') 
+df <- df %>% filter(rate==0.8 & mem_constraint==125 & noise==0)
+
+df %>% group_by(matcher) %>% 
+  summarize(n())
+
+```
+
+
+## random model
+```{r}
+file <- file.path('random_agent.stan')
+mod <- cmdstan_model(file, cpp_options = list(stan_threads=TRUE))
+```
+```{r}
+# data for this model
+data <- list(n = nrow(df), h = df$mismatcher)
+
+# following command calls stan
+samples <- mod$sample(
+  data = data,
+  seed = 123,
+  chains = 2,
+  parallel_chains = 2,
+  threads_per_chain = 2,
+  iter_warmup = 1000,
+  iter_sampling = 2000,
+  refresh = 500,
+  max_treedepth = 20,
+  adapt_delta = 0.99,
+)
+
+```
+```{r}
+# output
+samples$summary()
+```
+
+## memory model
+```{r}
+file <- file.path('memory_agent.stan')
+mod <- cmdstan_model(file, cpp_options = list(stan_threads=TRUE))
+```
+
+```{r}
+# data for this model
+data <- list(n = nrow(df), h = df$mismatcher)
+
+# following command calls stan
+samples <- mod$sample(
+  data = data,
+  seed = 123,
+  chains = 2,
+  parallel_chains = 2,
+  threads_per_chain = 2,
+  iter_warmup = 1000,
+  iter_sampling = 2000,
+  refresh = 500,
+  max_treedepth = 20,
+  adapt_delta = 0.99,
+)
+
+```
+
+```{r}
+# output
+samples$summary()
+```
