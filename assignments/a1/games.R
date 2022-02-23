@@ -3,7 +3,7 @@
 #####################################################
 
 ## RandomAgent (mismatcher) against memoryAgent (matcher)
-RandomAginstMemory <- function(trials, rate, noise, mem_constraint){
+RandomAgainstMemory <- function(trials, rate, noise, mem_constraint){
   matcher <- rep(NA, trials)
   mismatcher <- rep(NA, trials)
   
@@ -31,7 +31,7 @@ RandomAginstMemory <- function(trials, rate, noise, mem_constraint){
 
 
 ## WSLSAgent (mismatcher) against MemoryAgent (matcher)
-WSLSAginstMemory <- function(trials, noise, mem_constraint){
+WSLSAgainstMemory <- function(trials, noise, mem_constraint){
   matcher <- rep(NA, trials)
   mismatcher <- rep(NA, trials)
   
