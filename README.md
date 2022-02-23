@@ -14,6 +14,7 @@ The code for the Assignments will be in the folder ``assignments/``. The folder 
 ### Assignment 1:
 See folder ```assignments/a1```
 For the text, accompanying the assignment, see description in [the google docs](https://docs.google.com/document/d/1zb-AtV45-vx2DGHeZ7ZWjA_5C7Qsavs6SuY2_GykeuI/edit)
+![mem_against_all](assignments/a1/fig/mem_against_all.png)
 
 ### Assignment 2:
 
