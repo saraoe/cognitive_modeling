@@ -1,0 +1,217 @@
+---
+title: "precision_analysis"
+author: "Sara Østergaard"
+date: "2/3/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(pacman)
+pacman::p_load(
+  tidyverse,
+  here,
+  posterior,
+  cmdstanr,
+  brms,
+  boot
+)
+
+```
+
+
+## data
+```{r}
+df <- read_csv('C:/Users/Sara/Documents/8semester/cognitive_modeling/cognitive_modeling/assignments/a1/WSLSAgainstMemory.csv') 
+
+round <- c()
+for (i in 1:(nrow(df)/max(df$trial))){
+  round <- c(round, rep(i, max(df$trial)))
+}
+df$round <- round
+
+df <- df %>% group_by(round) %>% 
+  mutate(
+    'prevRate_mismatcher' = cumsum(mismatcher)/seq_along(mismatcher)
+  ) %>% filter(mem_constraint==125)
+
+```
+
+## compile memory model
+```{r}
+file <- file.path('memory_agent.stan')
+mod <- cmdstan_model(file, cpp_options = list(stan_threads=TRUE))
+```
+
+## prior sensitivity analysis
+```{r}
+
+prior_mean_alpha <- seq(-1,1,0.5)
+prior_mean_beta <- seq(-1,1,0.5)
+prior_sd_alpha <- 1 # seq(0.1,1,0.2)
+prior_sd_beta <- 0.5 # seq(0.1,1,0.2)
+priors <- expand.grid(prior_mean_alpha, prior_mean_beta, prior_sd_alpha, prior_sd_beta)
+priors <- tibble(prior_mean_alpha=priors$Var1,
+                 prior_mean_beta=priors$Var2,
+                 prior_sd_alpha=priors$Var3, 
+                 prior_sd_beta=priors$Var4)
+
+
+```
+
+```{r}
+sensitivity_df <- NULL
+
+for (p in seq(nrow(priors))){
+  
+   data <- list(n = nrow(df[1:1000,]), h = df[1:1000,]$matcher, r = df[1:1000,]$prevRate_mismatcher,
+             prior_mean_alpha=priors$prior_mean_alpha[p], 
+             prior_mean_beta=priors$prior_mean_beta[p], 
+             prior_sd_alpha=priors$prior_sd_alpha[p], 
+             prior_sd_beta=priors$prior_sd_beta[p])
+  
+  
+  samples <- mod$sample(
+    data = data,
+    seed = 123,
+    chains = 1,
+    parallel_chains = 1,
+    threads_per_chain = 1,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    refresh = 1000,
+    max_treedepth = 20,
+    adapt_delta = 0.99
+  )
+  
+  draws_df <- as_draws_df(samples$draws())
+  temp <- tibble(alpha_prior = draws_df$alpha_prior,
+                 beta_prior = draws_df$beta_prior,
+                 alpha_posterior = draws_df$alpha,
+                 beta_posterior = draws_df$beta,
+                 #prior_preds = draws_df$prior_preds,
+                 #posterior_preds = draws_df$posterior_preds,
+                 prior_mean_alpha = priors$prior_mean_alpha[p],
+                 prior_mean_beta = priors$prior_mean_beta[p],
+                 prior_sd_alpha = priors$prior_sd_alpha[p],
+                 prior_sd_beta = priors$prior_sd_beta[p])
+  
+  if (exists("sensitivity_df")){sensitivity_df<-rbind(sensitivity_df, temp)} else {sensitivity_df<-temp}
+}
+```
+```{r}
+ggplot(draws_df) +
+  geom_density(aes(alpha), fill="blue", alpha=0.3) +
+  geom_density(aes(alpha_prior), fill="red", alpha=0.3) + 
+  xlab("Alpha") +ylab("Posterior Density") +
+  theme_bw()
+
+ggplot(draws_df) +
+  geom_density(aes(beta), fill="blue", alpha=0.3) +
+  geom_density(aes(beta_prior), fill="red", alpha=0.3) + 
+  xlab("Beta") +ylab("Posterior Density") +
+  theme_bw()
+
+```
+```{r}
+alpha_mean_sensitivity <- sensitivity_df %>% filter(#prior_mean_alpha==0 &
+                                                      prior_sd_alpha==1 & 
+                                                      prior_mean_beta==0 & 
+                                                      prior_sd_beta==0.5)
+
+ggplot(alpha_mean_sensitivity) +
+  geom_density(aes(alpha_posterior), fill="blue", alpha=0.3) +
+  geom_density(aes(alpha_prior), fill="red", alpha=0.3) + 
+  xlab("Alpha") +ylab("Posterior Density") + facet_wrap(.~prior_mean_alpha) + 
+  theme_bw()
+
+```
+```{r}
+alpha_mean_sensitivity <- sensitivity_df %>% filter(#prior_mean_alpha==0 &
+                                                      prior_sd_alpha==1 & 
+                                                      prior_mean_alpha==0 & 
+                                                      prior_sd_beta==0.5)
+
+ggplot(alpha_mean_sensitivity) +
+  geom_density(aes(beta_posterior), fill="blue", alpha=0.3) +
+  geom_density(aes(beta_prior), fill="red", alpha=0.3) + 
+  xlab("Beta") +ylab("Posterior Density") + facet_wrap(.~prior_mean_beta) + 
+  theme_bw()
+
+```
+
+## parameter recovery
+```{r}
+
+recovery_df = NULL
+
+for (n in unique(df$noise)){
+  subset <- df %>% filter(noise==n)
+  subset <- subset
+  
+  # data for this model
+  data <- list(n = nrow(subset), h = subset$matcher, r = subset$prevRate_mismatcher,
+             prior_mean_alpha=0, prior_mean_beta=0, prior_sd_alpha=1, prior_sd_beta=0.5)
+
+# following command calls stan
+  samples <- mod$sample(
+    data = data,
+    seed = 123,
+    chains = 2,
+    parallel_chains = 2,
+    threads_per_chain = 2,
+    iter_warmup = 1000,
+    iter_sampling = 2000,
+    refresh = 500,
+    max_treedepth = 20,
+    adapt_delta = 0.99,
+  )
+  
+  draws_df <- as_draws_df(samples$draws())
+  
+  temp <- tibble(
+    alpha = draws_df$alpha,
+    beta = draws_df$beta,
+    noise = n
+  )
+  if (exists("recovery_df")){
+    recovery_df <- rbind(recovery_df, temp)
+  } else {
+    recovery_df <- temp
+  }
+}
+
+write_csv(recovery_df, 'recovery_df.csv')
+```
+
+```{r}
+plot_df = NULL
+
+rate = seq(0,1,0.1)
+
+for (i in 1:nrow(recovery_df)){
+  for (n in unique(recovery_df$noise)){
+    temp <- tibble(
+    rate = rate,
+    theta = boot::inv.logit(recovery_df[i,]$alpha + recovery_df[i,]$beta*rate),
+    correct_theta = ifelse(rate ==0.5, 0.5, ifelse(rate > 0.5, 1, 0)),
+    noise = rep(n, length(rate))
+  )
+    
+    if (exists("plot_df")){
+      plot_df <- rbind(plot_df, temp)
+    } else {
+      plot_df <- temp
+    }
+  }
+}
+
+
+ggplot(data=plot_df) + 
+  geom_point(aes(x=rate, y=theta), alpha=0.2) + 
+  geom_line(aes(x=rate, y=correct_theta), color='red', size=1) +
+  facet_wrap(.~noise) + theme_bw()
+
+```
+

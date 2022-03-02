@@ -14,13 +14,15 @@ pacman::p_load(
   here,
   posterior,
   cmdstanr,
-  brms
+  brms, 
+  boot
 )
 ```
 
 ## data
 ```{r}
 df <- read_csv('C:/Users/Sara/Documents/8semester/cognitive_modeling/cognitive_modeling/assignments/a1/RandomAgainstMemory.csv') 
+
 df <- df %>% filter(rate==0.8 & mem_constraint==125 & noise==0)
 
 df %>% group_by(matcher) %>% 
@@ -36,7 +38,7 @@ mod <- cmdstan_model(file, cpp_options = list(stan_threads=TRUE))
 ```
 ```{r}
 # data for this model
-data <- list(n = nrow(df), h = df$mismatcher)
+data <- list(n = nrow(df[1:1000,]), h = df[1:1000,]$mismatcher)
 
 # following command calls stan
 samples <- mod$sample(
@@ -53,9 +55,32 @@ samples <- mod$sample(
 )
 
 ```
+
 ```{r}
 # output
 samples$summary()
+```
+
+## data
+```{r}
+df <- read_csv('C:/Users/Sara/Documents/8semester/cognitive_modeling/cognitive_modeling/assignments/a1/WSLSAgainstMemory.csv') 
+
+df <- df %>% filter(mem_constraint==125 & noise==0)
+
+round <- c()
+for (i in 1:(nrow(df)/max(df$trial))){
+  round <- c(round, rep(i, max(df$trial)))
+}
+df$round <- round
+
+df <- df %>% group_by(round) %>% 
+  mutate(
+    'prevRate_mismatcher' = cumsum(mismatcher)/seq_along(mismatcher)
+  )
+
+df %>% group_by(matcher) %>% 
+  summarize(n())
+
 ```
 
 ## memory model
@@ -66,7 +91,8 @@ mod <- cmdstan_model(file, cpp_options = list(stan_threads=TRUE))
 
 ```{r}
 # data for this model
-data <- list(n = nrow(df), h = df$mismatcher)
+data <- list(n = nrow(df[1:1000,]), h = df[1:1000,]$matcher, r = df[1:1000,]$prevRate_mismatcher,
+             prior_mean_alpha=0, prior_mean_beta=0, prior_sd_alpha=1, prior_sd_beta=0.5)
 
 # following command calls stan
 samples <- mod$sample(
@@ -86,5 +112,27 @@ samples <- mod$sample(
 
 ```{r}
 # output
-samples$summary()
+summary <- samples$summary()
+summary
 ```
+
+```{r}
+alpha = summary[summary$variable=='alpha',]$mean
+beta = summary[summary$variable=='beta',]$mean
+inv.logit(alpha + beta*0.5)
+```
+
+
+```{r}
+draws_df <- as_draws_df(samples$draws())
+```
+
+```{r}
+ggplot(draws_df, aes(.iteration, alpha, group=.chain, color=.chain)) + 
+  geom_line()+theme_classic()
+
+ggplot(draws_df, aes(.iteration, beta, group=.chain, color=.chain)) + 
+  geom_line()+theme_classic()
+```
+
+

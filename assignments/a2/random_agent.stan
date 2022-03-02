@@ -1,4 +1,4 @@
-// stan model
+// stan model: random agent
 
 data {
   int<lower=1> n;
