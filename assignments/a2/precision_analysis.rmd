@@ -159,11 +159,12 @@ ggplot(alpha_mean_sensitivity) +
 ```{r}
 
 recovery_df = NULL
-n_trials = c(seq(20, 120, 40), 120)
+n_trials = c(20, 60, 120)
 
 for (n in unique(df$noise)){
   for (trial_number in n_trials){
-    subset <- df %>% filter(noise==n)
+    subset <- df %>% filter(noise==n & trial <= trial_number
+                            )
     subset <- subset
     
     # data for this model
@@ -177,8 +178,8 @@ for (n in unique(df$noise)){
       chains = 2,
       parallel_chains = 2,
       threads_per_chain = 2,
-      iter_warmup = 1000,
-      iter_sampling = 2000,
+      iter_warmup = 500,
+      iter_sampling = 500,
       refresh = 500,
       max_treedepth = 20,
       adapt_delta = 0.99,
@@ -207,7 +208,7 @@ write_csv(recovery_df, 'recovery_df.csv')
 
 recovery_df <- read_csv('recovery_df.csv')
 
-recovery_df %>% group_by(noise) %>% 
+recovery_df %>% group_by(noise, n_trials) %>% 
   summarize(
     mean(alpha),
     mean(beta)
@@ -226,7 +227,7 @@ rate = seq(0,1,0.05)
 for (n in unique(recovery_df$noise)){
   for (ntrial in unique(recovery_df$n_trials)){
     
-    rec_df <- recovery_df %>% filter(noise==n & n_trials = ntrial)
+    rec_df <- recovery_df %>% filter(noise==n & n_trials == ntrial)
     temp <- tibble(
     rate = rate,
     theta = boot::inv.logit(mean(rec_df$alpha) + mean(rec_df$beta)*rate),
@@ -247,7 +248,8 @@ for (n in unique(recovery_df$noise)){
 ggplot(data=plot_df) + 
   geom_point(aes(x=rate, y=theta, color = noise)) + 
   geom_line(aes(x=rate, y=correct_theta), color='red', size=1) +
-  theme_bw() + facet_wrap(.~n_trial)
+  theme_bw() + facet_wrap(.~n_trial) + 
+  labs(title = "Parameter recovery by number of trials")
 
 ```
 
