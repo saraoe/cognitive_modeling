@@ -33,8 +33,20 @@ df$round <- round
 
 df <- df %>% group_by(round) %>% 
   mutate(
-    'prevRate_mismatcher' = cumsum(mismatcher)/seq_along(mismatcher)
+    'rate_mismatcher' = cumsum(mismatcher)/seq_along(mismatcher)
   ) %>% filter(mem_constraint==125)
+
+# create col for prevRate
+prevRate_mismatcher <- c()
+for (i in 1:nrow(df)){
+  if (i==1){
+    prevRate_mismatcher <- c(prevRate_mismatcher, 0.5)
+  } else {
+      prevRate_mismatcher <- c(prevRate_mismatcher, df$rate_mismatcher[i-1])
+    }
+  
+}
+df$prevRate_mismatcher <- prevRate_mismatcher
 
 ```
 
@@ -99,6 +111,8 @@ for (p in seq(nrow(priors))){
   
   if (exists("sensitivity_df")){sensitivity_df<-rbind(sensitivity_df, temp)} else {sensitivity_df<-temp}
 }
+
+write_csv(sensitivity_df, 'sensitivity_df_only_mean.csv')
 ```
 ```{r}
 ggplot(draws_df) +
@@ -115,7 +129,7 @@ ggplot(draws_df) +
 
 ```
 ```{r}
-alpha_mean_sensitivity <- sensitivity_df %>% filter(#prior_mean_alpha==0 &
+alpha_mean_sensitivity <- sensitivity_df %>% filter(
                                                       prior_sd_alpha==1 & 
                                                       prior_mean_beta==0 & 
                                                       prior_sd_beta==0.5)
@@ -128,7 +142,7 @@ ggplot(alpha_mean_sensitivity) +
 
 ```
 ```{r}
-alpha_mean_sensitivity <- sensitivity_df %>% filter(#prior_mean_alpha==0 &
+alpha_mean_sensitivity <- sensitivity_df %>% filter(
                                                       prior_sd_alpha==1 & 
                                                       prior_mean_alpha==0 & 
                                                       prior_sd_beta==0.5)
@@ -145,40 +159,44 @@ ggplot(alpha_mean_sensitivity) +
 ```{r}
 
 recovery_df = NULL
+n_trials = c(seq(20, 120, 40), 120)
 
 for (n in unique(df$noise)){
-  subset <- df %>% filter(noise==n)
-  subset <- subset
+  for (trial_number in n_trials){
+    subset <- df %>% filter(noise==n)
+    subset <- subset
+    
+    # data for this model
+    data <- list(n = nrow(subset), h = subset$matcher, r = subset$prevRate_mismatcher,
+               prior_mean_alpha=0, prior_mean_beta=0, prior_sd_alpha=1, prior_sd_beta=0.5)
   
-  # data for this model
-  data <- list(n = nrow(subset), h = subset$matcher, r = subset$prevRate_mismatcher,
-             prior_mean_alpha=0, prior_mean_beta=0, prior_sd_alpha=1, prior_sd_beta=0.5)
-
-# following command calls stan
-  samples <- mod$sample(
-    data = data,
-    seed = 123,
-    chains = 2,
-    parallel_chains = 2,
-    threads_per_chain = 2,
-    iter_warmup = 1000,
-    iter_sampling = 2000,
-    refresh = 500,
-    max_treedepth = 20,
-    adapt_delta = 0.99,
-  )
-  
-  draws_df <- as_draws_df(samples$draws())
-  
-  temp <- tibble(
-    alpha = draws_df$alpha,
-    beta = draws_df$beta,
-    noise = n
-  )
-  if (exists("recovery_df")){
-    recovery_df <- rbind(recovery_df, temp)
-  } else {
-    recovery_df <- temp
+  # following command calls stan
+    samples <- mod$sample(
+      data = data,
+      seed = 123,
+      chains = 2,
+      parallel_chains = 2,
+      threads_per_chain = 2,
+      iter_warmup = 1000,
+      iter_sampling = 2000,
+      refresh = 500,
+      max_treedepth = 20,
+      adapt_delta = 0.99,
+    )
+    
+    draws_df <- as_draws_df(samples$draws())
+    
+    temp <- tibble(
+      alpha = draws_df$alpha,
+      beta = draws_df$beta,
+      noise = n,
+      n_trials = trial_number
+    )
+    if (exists("recovery_df")){
+      recovery_df <- rbind(recovery_df, temp)
+    } else {
+      recovery_df <- temp
+    }
   }
 }
 
@@ -186,17 +204,35 @@ write_csv(recovery_df, 'recovery_df.csv')
 ```
 
 ```{r}
+
+recovery_df <- read_csv('recovery_df.csv')
+
+recovery_df %>% group_by(noise) %>% 
+  summarize(
+    mean(alpha),
+    mean(beta)
+  )
+
+```
+
+
+```{r}
+
 plot_df = NULL
 
-rate = seq(0,1,0.1)
+rate = seq(0,1,0.05)
 
-for (i in 1:nrow(recovery_df)){
-  for (n in unique(recovery_df$noise)){
+
+for (n in unique(recovery_df$noise)){
+  for (ntrial in unique(recovery_df$n_trials)){
+    
+    rec_df <- recovery_df %>% filter(noise==n & n_trials = ntrial)
     temp <- tibble(
     rate = rate,
-    theta = boot::inv.logit(recovery_df[i,]$alpha + recovery_df[i,]$beta*rate),
+    theta = boot::inv.logit(mean(rec_df$alpha) + mean(rec_df$beta)*rate),
     correct_theta = ifelse(rate ==0.5, 0.5, ifelse(rate > 0.5, 1, 0)),
-    noise = rep(n, length(rate))
+    noise = rep(n, length(rate)),
+    n_trial = rep(ntrial, length(rate))
   )
     
     if (exists("plot_df")){
@@ -209,9 +245,9 @@ for (i in 1:nrow(recovery_df)){
 
 
 ggplot(data=plot_df) + 
-  geom_point(aes(x=rate, y=theta), alpha=0.2) + 
+  geom_point(aes(x=rate, y=theta, color = noise)) + 
   geom_line(aes(x=rate, y=correct_theta), color='red', size=1) +
-  facet_wrap(.~noise) + theme_bw()
+  theme_bw() + facet_wrap(.~n_trial)
 
 ```
 
