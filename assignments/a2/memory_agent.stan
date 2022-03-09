@@ -1,3 +1,4 @@
+
 // memory agent model
 
 data {
@@ -31,7 +32,7 @@ model {
   target += bernoulli_logit_lpmf(h | alpha + beta*r);
 }
 
-generated quantities{
+generated quantities{+
   // prior distributions for alpha and beta
   real alpha_prior;
   real beta_prior;
