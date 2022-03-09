@@ -19,6 +19,7 @@ For the text, accompanying the assignment, see description in [the google docs](
 ### Assignment 2:
 See folder ```assignments/a2```
 For the text, accompanying the assignment, see description in [the google docs](https://docs.google.com/document/d/1uGExV1nhm-FP5QGTHoyG3bA-oj1253n0vUR04Z1nc28/edit#heading=h.dxsscth36fui)
+![parameter_recovery](assignments/a2/fig/parameter_recovery.png)
 
 ### Assignment 3:
 
