@@ -115,6 +115,7 @@ for (p in seq(nrow(priors))){
 
 write_csv(sensitivity_df, 'sensitivity_df_only_sd.csv')
 ```
+
 ```{r}
 ggplot(draws_df) +
   geom_density(aes(alpha), fill="blue", alpha=0.3) +
@@ -241,7 +242,9 @@ recovery_df <- read_csv('recovery_df.csv')
 recovery_df %>% group_by(noise, n_trials) %>% 
   summarize(
     mean(alpha),
-    mean(beta)
+    sd(alpha),
+    mean(beta),
+    sd(beta)
   )
 
 ```
@@ -282,4 +285,43 @@ ggplot(data=plot_df) +
   labs(title = "Parameter recovery by number of trials")
 
 ```
+
+```{r}
+
+plot_df = NULL
+
+rate = seq(0,1,0.05)
+
+
+for (n in unique(recovery_df$noise)){
+  for (ntrial in unique(recovery_df$n_trials)){
+    
+    rec_df <- recovery_df %>% filter(noise==n & n_trials == ntrial)
+    for (i in 1:nrow(rec_df)){
+     temp <- tibble(
+      rate = rate,
+      theta = boot::inv.logit(rec_df$alpha[i] + rec_df$beta[i]*rate),
+      correct_theta = ifelse(rate ==0.5, 0.5, ifelse(rate > 0.5, 1, 0)),
+      noise = rep(n, length(rate)),
+      n_trial = rep(ntrial, length(rate))
+    )
+      
+      if (exists("plot_df")){
+        plot_df <- rbind(plot_df, temp)
+      } else {
+        plot_df <- temp
+      } 
+    }
+  }
+}
+
+
+ggplot(data=plot_df) + 
+  geom_point(aes(x=rate, y=theta, color = noise), alpha = 0.2) + 
+  geom_line(aes(x=rate, y=correct_theta), color='red', size=1) +
+  theme_bw() + facet_wrap(.~n_trial) + 
+  labs(title = "Parameter recovery by number of trials")
+
+```
+
 
