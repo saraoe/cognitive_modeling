@@ -1,0 +1,87 @@
+---
+title: "assignment n"
+author: "Sara Østergaard"
+date: "16/3/2022"
+output: html_document
+---
+
+During this assignment you will have to pick two (or more) models (e.g. Random Bias, Imperfect Memory, WSLS) and analyze one the Matching Pennies datasets available for the course (see end of instructions)
+
+```{r}
+library(pacman)
+pacman::p_load(
+  tidyverse
+)
+```
+
+## load data
+Data with cogsci students
+```{r}
+df <- read_csv('mp_students_22.csv')%>% 
+  filter(BotStrategyN == -1 | BotStrategyN == -2) %>%   # we will only look at WSLS and random bias bots
+  mutate(BotStrategy = ifelse(BotStrategyN == -1, 'RandomBias', 'WSLS'))
+
+df <- df %>% group_by(ID, BotStrategy) %>% 
+  mutate(CumulativePayoff = cumsum(Payoff)/seq_along(Payoff))
+```
+
+
+## Explore data
+```{r}
+
+df %>% group_by(ID, BotStrategy) %>% 
+  summarize(
+    n()
+  )
+# all participants played 40 trials against both bots
+
+df %>% group_by(BotStrategy) %>% 
+  summarize(
+    length(unique(ID))
+  )
+# All participants played both bots
+
+```
+
+### visualize games
+
+for one participant only
+```{r}
+one_participant = df[df$ID=='Oxford',]
+
+ggplot(one_participant, aes(Trial, CumulativePayoff, color=BotStrategy)) +
+  geom_line() + 
+  geom_hline(yintercept=0, linetype='dashed') +
+  theme_bw()
+
+```
+
+All participants:
+```{r}
+
+ggplot(data=df, aes(x=Trial, y=CumulativePayoff, color=ID)) + 
+  geom_line(size=1) + 
+  geom_hline(yintercept=0, linetype='dashed') +
+  theme_bw() + facet_wrap(.~BotStrategy)
+```
+
+```{r}
+plot_df <- df %>% group_by(Trial, BotStrategy) %>% 
+  summarize(
+    meanPayoff = mean(CumulativePayoff, na.rm=TRUE),
+    sd = sd(CumulativePayoff, na.rm=TRUE)
+  )
+
+ggplot(data=plot_df, aes(x=Trial, y=meanPayoff, color=BotStrategy)) + 
+  geom_ribbon(aes(ymin=meanPayoff-sd, ymax=meanPayoff+sd), alpha=0.1, linetype=0) + 
+  geom_line(size=1) + 
+  geom_hline(yintercept=0, linetype='dashed') +
+  theme_bw()
+
+```
+
+## Analyze data
+We would expect that the participants would use a memory strategy against the random bias model and win-shift-loose-stay against the WSLS model. 
+We will model both strategies on behavior in trials against random and WSLS bots respectively, and then compare these models to see which fits the actual behavior of the participants the best.
+
+
