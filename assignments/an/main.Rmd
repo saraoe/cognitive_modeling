@@ -8,9 +8,16 @@ output: html_document
 During this assignment you will have to pick two (or more) models (e.g. Random Bias, Imperfect Memory, WSLS) and analyze one the Matching Pennies datasets available for the course (see end of instructions)
 
 ```{r}
+knitr::opts_chunk$set(echo = TRUE)
+
 library(pacman)
 pacman::p_load(
-  tidyverse
+  tidyverse,
+  here,
+  posterior,
+  cmdstanr,
+  brms, 
+  boot
 )
 ```
 
@@ -22,7 +29,22 @@ df <- read_csv('mp_students_22.csv')%>%
   mutate(BotStrategy = ifelse(BotStrategyN == -1, 'RandomBias', 'WSLS'))
 
 df <- df %>% group_by(ID, BotStrategy) %>% 
-  mutate(CumulativePayoff = cumsum(Payoff)/seq_along(Payoff))
+  mutate(
+    'CumulativePayoff' = cumsum(Payoff)/seq_along(Payoff),
+    'rate_bot' = cumsum(BotChoice)/seq_along(BotChoice)
+    )
+
+# create col for previous rate for the bot (used in modeling the memory strategy)
+prevRate_bot <- c()
+for (i in 1:nrow(df)){
+  if (i==1){
+    prevRate_bot <- c(prevRate_bot, 0.5)
+  } else {
+      prevRate_bot <- c(prevRate_bot, df$rate_bot[i-1])
+    }
+  
+}
+df$prevRate_bot <- prevRate_bot
 ```
 
 
@@ -84,4 +106,59 @@ ggplot(data=plot_df, aes(x=Trial, y=meanPayoff, color=BotStrategy)) +
 We would expect that the participants would use a memory strategy against the random bias model and win-shift-loose-stay against the WSLS model. 
 We will model both strategies on behavior in trials against random and WSLS bots respectively, and then compare these models to see which fits the actual behavior of the participants the best.
 
+```{r}
+# load stan models
+mem_file <- file.path('../a2/memory_agent.stan')
+wsls_file <- file.path('../a2/WSLS_agent.stan')
+
+mem_mod <- cmdstan_model(mem_file, cpp_options = list(stan_threads=TRUE))
+wsls_mod <- cmdstan_model(wsls_file, cpp_options = list(stan_threads=TRUE))
+```
+
+### Against random bias bot
+```{r}
+# make data frame
+df_rb <- df %>% filter(BotStrategy=="RandomBias")
+
+```
+
+```{r}
+# data for this model
+mem_data <- list(n = nrow(df_rb), h = df_rb$Choice, r = df_rb$prevRate_bot,
+             prior_mean_alpha=0, prior_mean_beta=0, prior_sd_alpha=1, prior_sd_beta=0.5)
+
+# following command calls stan
+samples <- mem_mod$sample(
+  data = mem_data,
+  seed = 123,
+  chains = 2,
+  parallel_chains = 2,
+  threads_per_chain = 2,
+  iter_warmup = 1000,
+  iter_sampling = 2000,
+  refresh = 500,
+  max_treedepth = 20,
+  adapt_delta = 0.99,
+)
+
+```
+
+```{r}
+# data for this model
+wsls_data <- list()
+
+# following command calls stan
+samples <- wsls_mod$sample(
+  data = wsls_data,
+  seed = 123,
+  chains = 2,
+  parallel_chains = 2,
+  threads_per_chain = 2,
+  iter_warmup = 1000,
+  iter_sampling = 2000,
+  refresh = 500,
+  max_treedepth = 20,
+  adapt_delta = 0.99,
+)
+```
 
