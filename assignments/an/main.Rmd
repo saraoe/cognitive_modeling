@@ -17,7 +17,8 @@ pacman::p_load(
   posterior,
   cmdstanr,
   brms, 
-  boot
+  boot, 
+  loo
 )
 ```
 
@@ -31,20 +32,12 @@ df <- read_csv('mp_students_22.csv')%>%
 df <- df %>% group_by(ID, BotStrategy) %>% 
   mutate(
     'CumulativePayoff' = cumsum(Payoff)/seq_along(Payoff),
-    'rate_bot' = cumsum(BotChoice)/seq_along(BotChoice)
+    'rate_bot' = cumsum(BotChoice)/seq_along(BotChoice),
+    'prevRate_bot' = lag(rate_bot)
     )
+# fix the first NA in prevRate to change (i.e. 0.5)
+df$prevRate_bot = ifelse(is.na(df$prevRate_bot), 0.5, df$prevRate_bot)
 
-# create col for previous rate for the bot (used in modeling the memory strategy)
-prevRate_bot <- c()
-for (i in 1:nrow(df)){
-  if (i==1){
-    prevRate_bot <- c(prevRate_bot, 0.5)
-  } else {
-      prevRate_bot <- c(prevRate_bot, df$rate_bot[i-1])
-    }
-  
-}
-df$prevRate_bot <- prevRate_bot
 ```
 
 
@@ -104,31 +97,67 @@ ggplot(data=plot_df, aes(x=Trial, y=meanPayoff, color=BotStrategy)) +
 
 ## Analyze data
 We would expect that the participants would use a memory strategy against the random bias model and win-shift-loose-stay against the WSLS model. 
-We will model both strategies on behavior in trials against random and WSLS bots respectively, and then compare these models to see which fits the actual behavior of the participants the best.
+We would want to model both strategies on behavior in trials against random and WSLS bots respectively, and then compare these models to see which fits the actual behavior of the participants the best.
 
 ```{r}
 # load stan models
-mem_file <- file.path('../a2/memory_agent.stan')
-wsls_file <- file.path('../a2/WSLS_agent.stan')
+rand_file <- file.path('multilevel_random_agent.stan')
+mem_file <- file.path('multilevel_memory_agent.stan')
 
+rand_mod <- cmdstan_model(rand_file, cpp_options = list(stan_threads=TRUE))
 mem_mod <- cmdstan_model(mem_file, cpp_options = list(stan_threads=TRUE))
-wsls_mod <- cmdstan_model(wsls_file, cpp_options = list(stan_threads=TRUE))
 ```
+
+
 
 ### Against random bias bot
 ```{r}
-# make data frame
-df_rb <- df %>% filter(BotStrategy=="RandomBias")
+# ids for test
+id1 = 'Oxford'
+id2 = 'Hamburg'
+
+# make data frames
+df_rb <- df %>% filter(BotStrategy=="RandomBias") %>% filter(ID != id1 | ID != id2)
+df_rb_test <- df %>% filter(BotStrategy=="RandomBias") %>% filter(ID == id1 | ID == id2)
+
+# dataframe with choice and previous rate of the bot
+df_h <- df_rb %>% subset(select=c(ID, Choice)) %>% 
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = ID, values_from = Choice)
+
+df_prevRate <- df_rb %>% subset(select=c(ID, prevRate_bot)) %>% 
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = ID, values_from = prevRate_bot)
+
+df_h_test <- df_rb_test %>% subset(select=c(ID, Choice)) %>% 
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = ID, values_from = Choice)
+
+df_prevRate_test <- df_rb_test %>% subset(select=c(ID, prevRate_bot)) %>% 
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = ID, values_from = prevRate_bot)
 
 ```
 
+**Memory model**
 ```{r}
+
+n_trials <- max(df_rb$Trial)
+n_agents <- length(unique(df_rb$ID))
+n_agents_test = length(unique(df_rb_test$ID))
+
 # data for this model
-mem_data <- list(n = nrow(df_rb), h = df_rb$Choice, r = df_rb$prevRate_bot,
-             prior_mean_alpha=0, prior_mean_beta=0, prior_sd_alpha=1, prior_sd_beta=0.5)
+mem_data <- list(trials = n_trials, 
+                 agents = n_agents,
+                 h = as.matrix(df_h[, 2:(n_agents+1)]), 
+                 prevRate = as.matrix(df_prevRate[, 2:(n_agents+1)]),
+                 agents_test = n_agents_test,
+                 h_test = as.matrix(df_h_test[, 2:(n_agents_test+1)]), 
+                 prevRate_test = as.matrix(df_prevRate_test[, 2:(n_agents_test+1)])
+)
 
 # following command calls stan
-samples <- mem_mod$sample(
+mem_samples <- mem_mod$sample(
   data = mem_data,
   seed = 123,
   chains = 2,
@@ -144,12 +173,56 @@ samples <- mem_mod$sample(
 ```
 
 ```{r}
+# output of memory model
+mem_samples
+
+draws_df <- as_draws_df(mem_samples$draws())
+```
+
+```{r}
+# prior and posterior plots
+ggplot(draws_df) +
+  geom_density(aes(alphaM), fill="blue", alpha=0.3) +
+  geom_density(aes(alphaM_prior), fill="red", alpha=0.3) + 
+  xlab("AlphaM") +ylab("Posterior Density") +
+  theme_bw()
+
+ggplot(draws_df) +
+  geom_density(aes(alphaSD), fill="blue", alpha=0.3) +
+  geom_density(aes(alphaSD_prior), fill="red", alpha=0.3) + 
+  xlab("AlphaSD") +ylab("Posterior Density") +
+  theme_bw()
+
+ggplot(draws_df) +
+  geom_density(aes(betaM), fill="blue", alpha=0.3) +
+  geom_density(aes(betaM_prior), fill="red", alpha=0.3) + 
+  xlab("BetaM") +ylab("Posterior Density") +
+  theme_bw()
+
+ggplot(draws_df) +
+  geom_density(aes(betaSD), fill="blue", alpha=0.3) +
+  geom_density(aes(betaSD_prior), fill="red", alpha=0.3) + 
+  xlab("BetaSD") +ylab("Posterior Density") +
+  theme_bw()
+```
+
+**Random model**
+```{r}
+n_trials <- max(df_rb$Trial)
+n_agents <- length(unique(df_rb$ID))
+n_agents_test = length(unique(df_rb_test$ID))
+
 # data for this model
-wsls_data <- list()
+rand_data <- list(trials = n_trials, 
+                 agents = n_agents,
+                 h = as.matrix(df_h[, 2:(n_agents+1)]), 
+                 agents_test = n_agents_test,
+                 h_test = as.matrix(df_h_test[, 2:(n_agents_test+1)])
+)
 
 # following command calls stan
-samples <- wsls_mod$sample(
-  data = wsls_data,
+rand_samples <- rand_mod$sample(
+  data = rand_data,
   seed = 123,
   chains = 2,
   parallel_chains = 2,
@@ -160,5 +233,37 @@ samples <- wsls_mod$sample(
   max_treedepth = 20,
   adapt_delta = 0.99,
 )
+```
+
+```{r}
+# output of random bias model
+rand_samples
+
+draws_df <- as_draws_df(rand_samples$draws())
+```
+
+```{r}
+# prior and posterior plots
+ggplot(draws_df) +
+  geom_density(aes(thetaM), fill="blue", alpha=0.3) +
+  geom_density(aes(thetaM_prior), fill="red", alpha=0.3) + 
+  xlab("ThetaM") +ylab("Posterior Density") +
+  theme_bw()
+
+ggplot(draws_df) +
+  geom_density(aes(thetaSD), fill="blue", alpha=0.3) +
+  geom_density(aes(thetaSD_prior), fill="red", alpha=0.3) + 
+  xlab("ThetaSD") +ylab("Posterior Density") +
+  theme_bw()
+
+```
+
+**model comparison**
+```{r}
+loo_mem <-mem_samples$loo(cores=3)
+loo_rand <- rand_samples$loo(cores=3)
+
+loo_compare(loo_mem, loo_rand)
+
 ```
 
