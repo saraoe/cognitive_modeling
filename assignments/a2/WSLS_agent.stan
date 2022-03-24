@@ -5,6 +5,8 @@ data {
   int<lower = 0> n;
   array[n] int h;
   
+  // win_bias is 1 when you win and have chosen tails, 0 when you don't win, and -1 when you win and have chosen head. 
+  //loose_bias is 1 when you loose and have chosen heads, 0 when you didn't loose, and -1 when you loose and have chosen tails.
   vector<lower=-1, upper=1>[n] win_bias; 
   vector<lower=-1, upper=1>[n] loose_bias;
   
