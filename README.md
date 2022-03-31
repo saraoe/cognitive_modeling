@@ -12,17 +12,17 @@ The code for the Assignments will be in the folder ``assignments/``. The folder 
 | 5 [?] | Choose a model (e.g. from HbayesDM or my recoding of the Lee and Wagnmakers models) and use the Bayesian workflow to assess parameter recovery and identify optimal experimental design. | After W13 |
 
 ### Assignment 1:
-See folder ```assignments/a1```
+See folder ```assignments/a1```.
 For the text, accompanying the assignment, see description in [the google docs](https://docs.google.com/document/d/1zb-AtV45-vx2DGHeZ7ZWjA_5C7Qsavs6SuY2_GykeuI/edit)
 ![mem_against_all](assignments/a1/fig/mem_against_all.png)
 
 ### Assignment 2:
-See folder ```assignments/a2```
+See folder ```assignments/a2```.
 For the text, accompanying the assignment, see description in [the google docs](https://docs.google.com/document/d/1uGExV1nhm-FP5QGTHoyG3bA-oj1253n0vUR04Z1nc28/edit#heading=h.dxsscth36fui)
 ![parameter_recovery](assignments/a2/fig/parameter_recovery_all_points.png)
 
 ### Assignment 3:
-See folder ```assignments/a3```
+See folder ```assignments/a3```.
 
 ### Assignment 4:
 
