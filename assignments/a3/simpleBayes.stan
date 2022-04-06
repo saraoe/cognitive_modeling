@@ -1,20 +1,14 @@
 //
-// This Stan program defines a simple model, with a
-// vector of values 'y' modeled as normally distributed
-// with mean 'mu' and standard deviation 'sigma'.
-//
-// Learn more about model development with Stan at:
-//
-//    http://mc-stan.org/users/interfaces/rstan.html
-//    https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started
+// simple bayes model
 //
 
 
 data {
-  int<lower=0> N;
-  array[N] int y;
-  vector[N] Source1;
-  vector[N] Source2;
+  int<lower = 1> trials;
+  int<lower = 1> participants;
+  array[trials, participants] real y;
+  array[trials, participants] real Source1;
+  array[trials, participants] real Source2;
 }
 
 parameters {
@@ -25,17 +19,21 @@ model {
   target += normal_lpdf(sigma | 0, .3)  -
     normal_lccdf(0 | 0, .3);
   
-  for (n in 1:N){  
-    target += normal_lpdf(y[n] | logit(Source1[n]) +  logit(Source2[n]), sigma);
+  for (p in 1:participants){
+    for (t in 1:trials){
+     target += normal_lpdf(y[t,p] | logit(Source1[t,p]) +  logit(Source2[t,p]), sigma); 
+    }
   } 
 }
 
 generated quantities{
-  array[N] real log_lik;
+  array[trials, participants] real log_lik;
   
-  for (n in 1:N){  
-    log_lik[n] = normal_lpdf(y[n] | logit(Source1[n]) +  logit(Source2[n]), sigma);
-  }
+  for (p in 1:participants){
+    for (t in 1:trials){
+     log_lik[t,p] = normal_lpdf(y[t,p] | logit(Source1[t,p]) +  logit(Source2[t,p]), sigma); 
+    }
+  } 
   
 }
 
