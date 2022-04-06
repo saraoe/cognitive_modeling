@@ -39,6 +39,9 @@ sc <- sc %>% mutate(
   # feedback difference between own rating and other rating
   'Feedback' = OtherRating - FirstRating
 )
+
+# subset of the data
+sc <- sc %>% filter(ID %in% c(201, 202, 203))
 ```
 
 **The data contains the following columns:**
@@ -186,10 +189,11 @@ draws_df <- as_draws_df(samples_simple$draws())
 ```
 
 ```{r}
-ggplot(draws_df) +
-  geom_density(aes(sigma), fill='blue', alpha=0.5) + 
-  theme_bw()
+ggplot(draws_df, aes(.iteration, sigma, group = .chain, color = .chain)) +
+  geom_line() +
+  theme_classic()
 ```
+
 
 ## Weighted Bayes
 Now we will fit a weighted Bayes model to the data, where FirstRating is source 1 and OtherRating is source 2
@@ -202,24 +206,22 @@ mod <- cmdstan_model(file, cpp_options = list(stan_threads=TRUE))
 ```
 
 ```{r}
-sc_controls <- sc %>% filter(Group == 0 & ID %in% c(201, 202, 203))
-
 # data frames with data for the stan model
-df_choice <- sc_controls %>% subset(select=c(ID, SecondRating, Trial_Round1)) %>% 
+df_choice <- sc %>% subset(select=c(ID, SecondRating, Trial_Round1)) %>% 
   pivot_wider(names_from = ID, values_from = SecondRating)
 
-df_s1 <- sc_controls %>% subset(select=c(ID, FirstRating, Trial_Round1)) %>% 
+df_s1 <- sc %>% subset(select=c(ID, FirstRating, Trial_Round1)) %>% 
   pivot_wider(names_from = ID, values_from = FirstRating)
 
-df_s2 <- sc_controls %>% subset(select=c(ID, OtherRating, Trial_Round1)) %>% 
+df_s2 <- sc %>% subset(select=c(ID, OtherRating, Trial_Round1)) %>% 
   pivot_wider(names_from = ID, values_from = OtherRating)
 ```
 
 
 ```{r}
 # data for the stan model
-n_trials <- max(sc_controls$Trial_Round1)
-n_participants <- length(unique(sc_controls$ID))
+n_trials <- max(sc$Trial_Round1)
+n_participants <- length(unique(sc$ID))
 
 data <- list(
   trials = n_trials,
@@ -251,6 +253,22 @@ draws_df <- as_draws_df(samples_weighted$draws())
 ```
 
 ```{r}
+ggplot(draws_df, aes(.iteration, w1M, group = .chain, color = .chain)) +
+  geom_line() +
+  theme_classic()
+
+ggplot(draws_df, aes(.iteration, w2M, group = .chain, color = .chain)) +
+  geom_line() +
+  theme_classic()
+
+ggplot(draws_df, aes(.iteration, sigma, group = .chain, color = .chain)) +
+  geom_line() +
+  theme_classic()
+
+```
+
+
+```{r}
 weight1_update <- ggplot(draws_df) +
   geom_density(aes(w1M), fill='blue', alpha=0.5) + 
   geom_density(aes(w1M_prior), fill='red', alpha=0.5) + 
@@ -270,8 +288,19 @@ weight1_update + weight2_update
 We will compare the two models: simple bayes and weighted bayes
 
 ```{r}
+loo_simple <-samples_simple$loo(cores=3)
+loo_weighted <- samples_weighted$loo(cores=3)
+
+plot(loo_simple)
+plot(loo_weighted)
 
 ```
+
+```{r}
+loo_compare(loo_simple, loo_weighted)
+loo_model_weights(list(loo_simple, loo_weighted))
+```
+
 
 
 
