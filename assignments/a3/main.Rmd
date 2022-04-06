@@ -16,7 +16,8 @@ pacman::p_load(
   cmdstanr,
   brms, 
   boot, 
-  loo
+  loo,
+  patchwork
 )
 
 ```
@@ -132,14 +133,14 @@ First we will fit a simple Bayes model to the data, where FirstRating is source 
 
 ```{r}
 # load model
-file <- file.path('simpleBayes_multilevel.stan')
+file <- file.path('simpleBayes.stan')
 
 mod <- cmdstan_model(file, cpp_options = list(stan_threads=TRUE))
 ```
 
 ```{r}
 # data frames with data for the stan model
-df_y <- sc %>% subset(select=c(ID, SecondRating, Trial_Round1)) %>% 
+df_choice <- sc %>% subset(select=c(ID, SecondRating, Trial_Round1)) %>% 
   pivot_wider(names_from = ID, values_from = SecondRating)
 
 df_s1 <- sc %>% subset(select=c(ID, FirstRating, Trial_Round1)) %>% 
@@ -153,18 +154,18 @@ df_s2 <- sc %>% subset(select=c(ID, OtherRating, Trial_Round1)) %>%
 ```{r}
 # data for the stan model
 n_trials <- max(sc$Trial_Round1)
-n_participants <- length(unique(sc$ID))
+n_agents <- length(unique(sc$ID))
 
 data <- list(
   trials = n_trials,
-  participants = n_participants,
-  y = as.matrix(df_y[, 2:(n_participants+1)])/10,
+  agents = n_agents,
+  choice = as.matrix(df_choice[, 2:(n_participants+1)]),
   Source1 = as.matrix(df_s1[, 2:(n_participants+1)])/10,
   Source2 = as.matrix(df_s2[, 2:(n_participants+1)])/10
 )
 
 # call stan
-samples <- mod$sample(
+samples_simple <- mod$sample(
   data = data,
   seed = 123,
   chains = 2,
@@ -179,15 +180,97 @@ samples <- mod$sample(
 ```
 
 ```{r}
-samples
+samples_simple
 
-draws_df <- as_draws_df(samples$draws())
+draws_df <- as_draws_df(samples_simple$draws())
 ```
 
 ```{r}
 ggplot(draws_df) +
   geom_density(aes(sigma), fill='blue', alpha=0.5) + 
   theme_bw()
+```
+
+## Weighted Bayes
+Now we will fit a weighted Bayes model to the data, where FirstRating is source 1 and OtherRating is source 2
+
+```{r}
+# load model
+file <- file.path('weightedBayes.stan')
+
+mod <- cmdstan_model(file, cpp_options = list(stan_threads=TRUE))
+```
+
+```{r}
+sc_controls <- sc %>% filter(Group == 0 & ID %in% c(201, 202, 203))
+
+# data frames with data for the stan model
+df_choice <- sc_controls %>% subset(select=c(ID, SecondRating, Trial_Round1)) %>% 
+  pivot_wider(names_from = ID, values_from = SecondRating)
+
+df_s1 <- sc_controls %>% subset(select=c(ID, FirstRating, Trial_Round1)) %>% 
+  pivot_wider(names_from = ID, values_from = FirstRating)
+
+df_s2 <- sc_controls %>% subset(select=c(ID, OtherRating, Trial_Round1)) %>% 
+  pivot_wider(names_from = ID, values_from = OtherRating)
+```
+
+
+```{r}
+# data for the stan model
+n_trials <- max(sc_controls$Trial_Round1)
+n_participants <- length(unique(sc_controls$ID))
+
+data <- list(
+  trials = n_trials,
+  agents = n_participants,
+  choice = as.matrix(df_choice[, 2:(n_participants+1)]),
+  Source1 = as.matrix(df_s1[, 2:(n_participants+1)])/10,
+  Source2 = as.matrix(df_s2[, 2:(n_participants+1)])/10
+)
+
+# call stan
+samples_weighted <- mod$sample(
+  data = data,
+  seed = 123,
+  chains = 2,
+  parallel_chains = 2,
+  threads_per_chain = 2,
+  iter_warmup = 1000,
+  iter_sampling = 2000,
+  refresh = 1000,
+  max_treedepth = 20,
+  adapt_delta = 0.99
+)
+```
+
+```{r}
+samples_weighted$summary()
+
+draws_df <- as_draws_df(samples_weighted$draws())
+```
+
+```{r}
+weight1_update <- ggplot(draws_df) +
+  geom_density(aes(w1M), fill='blue', alpha=0.5) + 
+  geom_density(aes(w1M_prior), fill='red', alpha=0.5) + 
+  theme_bw()
+
+weight2_update <- ggplot(draws_df) +
+  geom_density(aes(w2M), fill='blue', alpha=0.5) + 
+  geom_density(aes(w2M_prior), fill='red', alpha=0.5) + 
+  theme_bw()
+
+weight1_update + weight2_update
+```
+
+
+
+## model comparison
+We will compare the two models: simple bayes and weighted bayes
+
+```{r}
+
 ```
 
 

@@ -34,7 +34,7 @@ parameters {
   matrix[2, agents] z_IDs; 
   // A correlation coefficient that accounts for the fact that when we're sampling a high mean of weight 1 for an individual participant, 
   // that we are more likely to sample a low value for weight 2.
-  cholesky_factor_corr[2] L_u 
+  cholesky_factor_corr[2] L_u; 
 }
 
 transformed parameters {
@@ -46,10 +46,8 @@ model {
   // priors
   target += normal_lpdf(weight1M | 0, 1);
   target += normal_lpdf(weight2M | 0, 1);
-  target += normal_lpdf(tau[1] | 0, .3) -
-    normal_lccdf(0 | 0, .3);
-  target += normal_lpdf(tau[2]) | 0, .3) -
-    normal_lccdf(0 | 0, .3);
+  target += normal_lpdf(tau[1] | 0, .3) - normal_lccdf(0 | 0, .3);
+  target += normal_lpdf(tau[2] | 0, .3) - normal_lccdf(0 | 0, .3);
   target += lkj_corr_cholesky_lpdf(L_u | 2);
   
   target += std_normal_lpdf(to_vector(z_IDs));
@@ -57,9 +55,9 @@ model {
   // model
   for (agent in 1:agents){
     for (trial in 1:trials){
-      target += normal_lpdf(choice[trial, agent]] |
-        weight_f(Source1[trial, agent], weight1M + IDs[agent,1]) +
-        weight_f(Source2[trial, agent], weight2M + IDs[agent,2]),
+      target += normal_lpdf(choice[trial, agent] |
+        weight_f(Source1[trial, agent], weight1M + IDs[1,agent]) +
+        weight_f(Source2[trial, agent], weight2M + IDs[2, agent]),
         sigma);
     }
   }
@@ -67,21 +65,22 @@ model {
 
 generated quantities{
   array[trials, agents] real log_lik;
-  real w1M;
-  real w2M;
   real w1M_prior;
   real w2M_prior;
+  real w1M;
+  real w2M;
   
   w1M_prior = 0.5 + inv_logit(normal_rng(0,1))/2;
   w2M_prior = 0.5 + inv_logit(normal_rng(0,1))/2;
+
   w1M = 0.5 + inv_logit(weight1M)/2;
   w2M = 0.5 + inv_logit(weight2M)/2;
   
   for (agent in 1:agents){
     for (trial in 1:trials){
-      log_lik = normal_lpdf(choice[trial, agent]] |
-        weight_f(Source1[trial, agent], weight1M + IDs[agent,1]) +
-        weight_f(Source2[trial, agent], weight2M + IDs[agent,2]),
+      log_lik[trial, agent] = normal_lpdf(choice[trial, agent] |
+        weight_f(Source1[trial, agent], weight1M + IDs[1, agent]) +
+        weight_f(Source2[trial, agent], weight2M + IDs[2, agent]),
         sigma);
     }
   }

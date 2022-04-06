@@ -5,10 +5,10 @@
 
 data {
   int<lower = 1> trials;
-  int<lower = 1> participants;
-  array[trials, participants] real y;
-  array[trials, participants] real Source1;
-  array[trials, participants] real Source2;
+  int<lower = 1> agents;
+  array[trials, agents] int choice;
+  array[trials, agents] real Source1;
+  array[trials, agents] real Source2;
 }
 
 parameters {
@@ -19,19 +19,19 @@ model {
   target += normal_lpdf(sigma | 0, .3)  -
     normal_lccdf(0 | 0, .3);
   
-  for (p in 1:participants){
+  for (a in 1:agents){
     for (t in 1:trials){
-     target += normal_lpdf(y[t,p] | logit(Source1[t,p]) +  logit(Source2[t,p]), sigma); 
+     target += normal_lpdf(choice[t,a] | logit(Source1[t,a]) +  logit(Source2[t,a]), sigma); 
     }
   } 
 }
 
 generated quantities{
-  array[trials, participants] real log_lik;
+  array[trials, agents] real log_lik;
   
-  for (p in 1:participants){
+  for (a in 1:agents){
     for (t in 1:trials){
-     log_lik[t,p] = normal_lpdf(y[t,p] | logit(Source1[t,p]) +  logit(Source2[t,p]), sigma); 
+     log_lik[t,a] = normal_lpdf(choice[t,a] | logit(Source1[t,a]) +  logit(Source2[t,a]), sigma); 
     }
   } 
   
