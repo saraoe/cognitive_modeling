@@ -23,6 +23,7 @@ For the text, accompanying the assignment, see description in [the google docs](
 ### Assignment 3:
 See folder ```assignments/a3```.
 For the text, accompanying the assignment, see description in [the google docs](https://docs.google.com/document/d/1ab_LKP8O2EaGfPfGugPH00LyCcf3N6tSL6IM2p4vj-w/edit)
+![change_feedback](assignments/a3/fig/change_feedback_groups.png)
 
 ### Assignment 4:
 
