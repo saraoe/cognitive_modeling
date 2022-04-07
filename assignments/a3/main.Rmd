@@ -39,9 +39,6 @@ sc <- sc %>% mutate(
   # feedback difference between own rating and other rating
   'Feedback' = OtherRating - FirstRating
 )
-
-# subset of the data
-sc <- sc %>% filter(ID %in% c(201, 202, 203))
 ```
 
 **The data contains the following columns:**
@@ -131,6 +128,15 @@ ggplot(sc, aes(SecondRating, Feedback)) +
   geom_point(alpha = 0.1) + theme_bw() + facet_wrap('Group')
 ```
 
+
+## Subsetting data before running models
+```{r}
+# subset of the data
+# sc <- sc %>% filter(ID %in% c(201, 202, 203))
+sc <- sc %>% filter(Group==0)  # only controls
+```
+
+
 ## Simple Bayes
 First we will fit a simple Bayes model to the data, where FirstRating is source 1 and OtherRating is source 2
 
@@ -162,9 +168,9 @@ n_agents <- length(unique(sc$ID))
 data <- list(
   trials = n_trials,
   agents = n_agents,
-  choice = as.matrix(df_choice[, 2:(n_participants+1)]),
-  Source1 = as.matrix(df_s1[, 2:(n_participants+1)])/10,
-  Source2 = as.matrix(df_s2[, 2:(n_participants+1)])/10
+  choice = as.matrix(df_choice[, 2:(n_agents+1)]),
+  Source1 = as.matrix(df_s1[, 2:(n_agents+1)])/10,
+  Source2 = as.matrix(df_s2[, 2:(n_agents+1)])/10
 )
 
 # call stan
@@ -186,6 +192,8 @@ samples_simple <- mod$sample(
 samples_simple
 
 draws_df <- as_draws_df(samples_simple$draws())
+
+# write_csv(draws_df, "simple_draws.csv")
 ```
 
 ```{r}
@@ -221,14 +229,14 @@ df_s2 <- sc %>% subset(select=c(ID, OtherRating, Trial_Round1)) %>%
 ```{r}
 # data for the stan model
 n_trials <- max(sc$Trial_Round1)
-n_participants <- length(unique(sc$ID))
+n_agents <- length(unique(sc$ID))
 
 data <- list(
   trials = n_trials,
-  agents = n_participants,
-  choice = as.matrix(df_choice[, 2:(n_participants+1)]),
-  Source1 = as.matrix(df_s1[, 2:(n_participants+1)])/10,
-  Source2 = as.matrix(df_s2[, 2:(n_participants+1)])/10
+  agents = n_agents,
+  choice = as.matrix(df_choice[, 2:(n_agents+1)]),
+  Source1 = as.matrix(df_s1[, 2:(n_agents+1)])/10,
+  Source2 = as.matrix(df_s2[, 2:(n_agents+1)])/10
 )
 
 # call stan
@@ -250,6 +258,8 @@ samples_weighted <- mod$sample(
 samples_weighted$summary()
 
 draws_df <- as_draws_df(samples_weighted$draws())
+
+# write_csv(draws_df, "weighted_draws.csv")
 ```
 
 ```{r}
