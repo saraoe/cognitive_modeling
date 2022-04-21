@@ -1,0 +1,32 @@
+---
+title: "assignment 4"
+author: "Sara Østergaard"
+date: "21/4/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(pacman)
+pacman::p_load(
+  tidyverse,
+  here,
+  posterior,
+  cmdstanr,
+  brms, 
+  boot, 
+  loo,
+  patchwork
+)
+
+source('util.R')
+```
+
+## Simulate data
+```{r}
+
+```
+
+
+
