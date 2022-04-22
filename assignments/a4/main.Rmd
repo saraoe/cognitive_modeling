@@ -88,6 +88,12 @@ for (cond in 1:2){
 
 ```
 
+save dataframe
+```{r}
+write_csv(d, "simulated_data.csv")
+```
+
+
 ## model
 ```{r}
 # load model
@@ -95,6 +101,74 @@ file <- file.path('reinforcement_learning.stan')
 mod <- cmdstan_model(file, cpp_options = list(stan_threads=TRUE))
 print("Done compiling!")
 ```
+Prepare data and run model
+```{r}
+# make data frames to make into matrices
+df_cond <- d %>% mutate(cond = condition-1) %>% 
+  subset(select=c(cond, condition, trial)) %>% 
+  pivot_wider(names_from = condition, values_from = cond)
+
+df_choice <- d %>% subset(select=c(choice, condition, trial)) %>% 
+  pivot_wider(names_from = condition, values_from = choice)
+
+df_feedback <- d %>% subset(select=c(feedback, condition, trial)) %>% 
+  pivot_wider(names_from = condition, values_from = feedback)
+
+# data for the model
+data <- list(
+  trials = max(d$trial),
+  cond = as.matrix(df_cond[,2:3]),
+  choice = as.matrix(df_choice[,2:3]),
+  feedback = as.matrix(df_feedback[,2:3])
+)
+
+# call stan
+samples <- mod$sample(
+  data = data,
+  seed = 123,
+  chains = 2,
+  parallel_chains = 2,
+  threads_per_chain = 2,
+  iter_warmup = 1000,
+  iter_sampling = 2000,
+  refresh = 1000,
+  max_treedepth = 20,
+  adapt_delta = 0.99
+)
+
+```
+
+```{r}
+samples$summary()
+
+draws_df <- as_draws_df(samples$draws())
+```
+
+chains
+```{r}
+ggplot(draws_df, aes(.iteration, alpha1, group = .chain, color = .chain)) +
+  geom_line() +
+  theme_classic()
+
+ggplot(draws_df, aes(.iteration, alpha2, group = .chain, color = .chain)) +
+  geom_line() +
+  theme_classic()
+```
+prior posterior update
+```{r}
+alpha1_update <- ggplot(draws_df) +
+  geom_density(aes(alpha1), fill='blue', alpha=0.5) + 
+  geom_density(aes(alpha1_prior), fill='red', alpha=0.5) + 
+  theme_bw()
+
+alpha2_update <- ggplot(draws_df) +
+  geom_density(aes(alpha2), fill='blue', alpha=0.5) + 
+  geom_density(aes(alpha2_prior), fill='red', alpha=0.5) + 
+  theme_bw()
+
+alpha1_update + alpha2_update
+```
+
 
 
 ## parameter recovery
