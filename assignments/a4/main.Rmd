@@ -26,7 +26,77 @@ source('util.R')
 ## Simulate data
 ```{r}
 
+# parameters
+temp <- 0.5 # same for both conditions
+alpha_cond1 <- 0.6
+alpha_cond2 <- 0.8
+p <- 0.75  # probability that choice 1 gives a reward
+
+# define number of trials
+n_trials <- 20
+
+# make sure the dataframe doesn't exist
+d <- NULL
+
+
+# simulate
+for (cond in 1:2){
+  print(paste("condition = ", cond))
+  # simulate bot
+  correct_choice <- rbinom(n_trials, 1, p)
+  # initialize values for the two choices
+  values <- c(0,0)
+  # define correct learning rate for the condition
+  alpha <- ifelse(cond==1, alpha_cond1, alpha_cond2)
+  # make tmp dataframe
+  tmp <- tibble(
+    choice = rep(0, n_trials),
+    value1 = rep(0, n_trials),
+    value2 = rep(0, n_trials),
+    feedback = rep(0, n_trials),
+    condition = rep(0, n_trials),
+    trial = rep(0, n_trials),
+    learning_rate = rep(0, n_trials)
+  )
+  
+  for (trial in 1:n_trials){
+    if (trial %% 10 == 0){
+     print(paste("trial = ", trial)) 
+    }
+    
+    choice <- rbinom(1, 1, softmax(values[2]-values[1], temp))
+    feedback <- ifelse(correct_choice[trial]==choice, 1, -1)
+    values <- valueUpdate(values, alpha, choice, feedback)
+    
+    # fill in dataframe
+    tmp$choice[trial] <- choice + 1
+    tmp$value1[trial] <- values[1]
+    tmp$value2[trial] <- values[2]
+    tmp$feedback[trial] <- feedback
+    tmp$condition[trial] <- cond
+    tmp$trial[trial] <- trial
+    tmp$learning_rate[trial] <- alpha
+    
+  }
+  if (exists("d")){
+    d <- rbind(d, tmp)
+  } else {
+    d <- tmp
+  }
+}
+
+
 ```
 
+## model
+```{r}
+# load model
+file <- file.path('reinforcement_learning.stan')
+mod <- cmdstan_model(file, cpp_options = list(stan_threads=TRUE))
+print("Done compiling!")
+```
+
+
+## parameter recovery
 
 
