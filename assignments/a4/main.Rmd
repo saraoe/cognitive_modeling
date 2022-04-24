@@ -33,7 +33,7 @@ alpha_cond2 <- 0.8
 p <- 0.75  # probability that choice 1 gives a reward
 
 # define number of trials
-n_trials <- 20
+n_trials <- 1000
 
 # make sure the dataframe doesn't exist
 d <- NULL
@@ -48,6 +48,7 @@ for (cond in 1:2){
   values <- c(0,0)
   # define correct learning rate for the condition
   alpha <- ifelse(cond==1, alpha_cond1, alpha_cond2)
+  print(alpha)
   # make tmp dataframe
   tmp <- tibble(
     choice = rep(0, n_trials),
@@ -60,7 +61,7 @@ for (cond in 1:2){
   )
   
   for (trial in 1:n_trials){
-    if (trial %% 10 == 0){
+    if (trial %% 100 == 0){
      print(paste("trial = ", trial)) 
     }
     
@@ -88,8 +89,8 @@ for (cond in 1:2){
 
 ```
 
-save dataframe
 ```{r}
+# save simulated data
 write_csv(d, "simulated_data.csv")
 ```
 
@@ -157,12 +158,12 @@ ggplot(draws_df, aes(.iteration, alpha2, group = .chain, color = .chain)) +
 prior posterior update
 ```{r}
 alpha1_update <- ggplot(draws_df) +
-  geom_density(aes(alpha1), fill='blue', alpha=0.5) + 
+  geom_density(aes(alpha1_transformed), fill='blue', alpha=0.5) + 
   geom_density(aes(alpha1_prior), fill='red', alpha=0.5) + 
   theme_bw()
 
 alpha2_update <- ggplot(draws_df) +
-  geom_density(aes(alpha2), fill='blue', alpha=0.5) + 
+  geom_density(aes(alpha2_transformed), fill='blue', alpha=0.5) + 
   geom_density(aes(alpha2_prior), fill='red', alpha=0.5) + 
   theme_bw()
 
