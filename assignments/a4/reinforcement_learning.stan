@@ -3,7 +3,15 @@
 // The participant have been exposed for two different trials
 //
 
-data {  // add condition
+functions{
+  real normal_lb_rng(real mu, real sigma, real lb) {
+    real p = normal_cdf(lb | mu, sigma);  // cdf for bounds
+    real u = uniform_rng(p, 1);
+    return (sigma * inv_Phi(u)) + mu;  // inverse cdf for value
+  }
+}
+
+data {
   int<lower=1> trials;
   array[trials, 2] int<lower=0, upper=1> cond;  //binary: 0=cond 1, 1=cond 2
   array[trials, 2] int<lower=1, upper=2> choice;
@@ -16,19 +24,10 @@ transformed data {
 }
 
 parameters {
-  // real<lower=0, upper=1> alpha;
-  // real<lower=0, upper=1> alpha1;
-  // real<lower=0, upper=1> alpha2;
   real alpha1;
   real alpha2;
   real<lower=0> temperature;
 }
-
-// transformed parameters{
-//   real<lower=0, upper=1> alpha;
-//   
-//   alpha = alpha1*(1-cond) + alpha2*cond;
-// }
 
 model {
   real pe;
@@ -43,7 +42,8 @@ model {
   // normally distributed priors
   target += normal_lpdf(alpha1 | 0, .5);
   target += normal_lpdf(alpha2 | 0, .5);
-  target += normal_lpdf(temperature | 0, 1);
+  target += normal_lpdf(temperature | 10, 5) -
+    normal_lccdf(0 | 10, 5);
   
   
   for (c in 1:2){  // loop over the two conditions
@@ -52,7 +52,7 @@ model {
     
     for (t in 1:trials){  // loop over each trial
     
-      theta = softmax(inv_logit(temperature) * values);
+      theta = softmax(temperature * values);
       target += categorical_lpmf(choice[t, c] | theta);
       
       alpha = inv_logit(alpha1*(1-cond[t, c]) + alpha2*cond[t, c]);
@@ -86,7 +86,8 @@ generated quantities {
   // normally distributed priors
   alpha1_prior = inv_logit(normal_rng(0, .5));
   alpha2_prior = inv_logit(normal_rng(0, .5));
-  temperature_prior = inv_logit(normal_rng(0, 1));
+  temperature_prior = normal_rng(10, 5) -
+    normal_lb_rng(10, 5, 0);
   
   alpha1_transformed = inv_logit(alpha1);
   alpha2_transformed = inv_logit(alpha2);

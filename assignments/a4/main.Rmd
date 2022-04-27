@@ -33,7 +33,7 @@ alpha_cond2 <- 0.8
 p <- 0.75  # probability that choice 1 gives a reward
 
 # define number of trials
-n_trials <- 1000
+n_trials <- 100
 
 # make sure the dataframe doesn't exist
 d <- NULL
@@ -147,6 +147,10 @@ draws_df <- as_draws_df(samples$draws())
 
 chains
 ```{r}
+ggplot(draws_df, aes(.iteration, temperature, group = .chain, color = .chain)) +
+  geom_line() +
+  theme_classic()
+
 ggplot(draws_df, aes(.iteration, alpha1, group = .chain, color = .chain)) +
   geom_line() +
   theme_classic()
