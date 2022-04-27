@@ -70,6 +70,7 @@ generated quantities {
   real<lower=0> temperature_prior;
   real<lower=0, upper=1> alpha1_transformed;
   real<lower=0, upper=1> alpha2_transformed;
+  real alpha_diff;
 
   real pe;
   real alpha;
@@ -89,6 +90,8 @@ generated quantities {
   
   alpha1_transformed = inv_logit(alpha1);
   alpha2_transformed = inv_logit(alpha2);
+  
+  alpha_diff = alpha2_transformed - alpha1_transformed;
   
 
   log_lik = 0;
