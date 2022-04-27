@@ -33,7 +33,7 @@ alpha_cond2 <- 0.8
 p <- 0.75  # probability that choice 1 gives a reward
 
 # define number of trials
-n_trials <- 100
+n_trials <- 5000
 
 # make sure the dataframe doesn't exist
 d <- NULL
@@ -96,6 +96,12 @@ write_csv(d, "simulated_data.csv")
 
 
 ## model
+```{r}
+# read data
+d <- read_csv('simulated_data.csv')
+```
+
+
 ```{r}
 # load model
 file <- file.path('reinforcement_learning.stan')
@@ -174,8 +180,106 @@ alpha2_update <- ggplot(draws_df) +
 alpha1_update + alpha2_update
 ```
 
+```{r}
+ggplot(draws_df) +
+  geom_density(aes(temperature_transformed), fill='blue', alpha=0.5) + 
+  geom_density(aes(temperature_prior), fill='red', alpha=0.5) + 
+  theme_bw()
+```
 
 
 ## parameter recovery
+```{r}
+n_trials <- c(100, 500,  1000, 1500, 2000)
+
+recovery_df <- NULL
+
+for (n_trial in n_trials){
+  print(paste('n_trial = ', n_trial))
+  tmp_d <- d %>% filter(trial <= n_trial)
+  
+  # make data frames to make into matrices
+  df_cond <- tmp_d %>% mutate(cond = condition-1) %>% 
+    subset(select=c(cond, condition, trial)) %>% 
+    pivot_wider(names_from = condition, values_from = cond)
+  
+  df_choice <- tmp_d %>% subset(select=c(choice, condition, trial)) %>% 
+    pivot_wider(names_from = condition, values_from = choice)
+  
+  df_feedback <- tmp_d %>% subset(select=c(feedback, condition, trial)) %>% 
+    pivot_wider(names_from = condition, values_from = feedback)
+  
+  # data for the model
+  data <- list(
+    trials = max(tmp_d$trial),
+    cond = as.matrix(df_cond[,2:3]),
+    choice = as.matrix(df_choice[,2:3]),
+    feedback = as.matrix(df_feedback[,2:3])
+  )
+  
+  # call stan
+  samples <- mod$sample(
+    data = data,
+    seed = 123,
+    chains = 2,
+    parallel_chains = 2,
+    threads_per_chain = 2,
+    iter_warmup = 1000,
+    iter_sampling = 2000,
+    refresh = 1000,
+    max_treedepth = 20,
+    adapt_delta = 0.99
+  )
+  
+  # save models
+  tmp_model <- as_draws_df(samples$draws()) %>% select(
+    alpha1,
+    alpha2,
+    alpha1_transformed,
+    alpha2_transformed,
+    alpha_diff,
+    temperature,
+    temperature_transformed
+  )
+  
+  tmp_model$n_trial <- rep(n_trial, nrow(tmp_model))
+  
+  if (exists("recovery_df")){
+    recovery_df <- rbind(recovery_df, tmp_model)
+  } else {
+    recovery_df <- tmp_model
+  }
+}
+```
+
+```{r}
+# save data
+write_csv(recovery_df, "recovery.csv")
+```
+
+Plots
+```{r}
+ggplot(recovery_df) +
+  geom_density(aes(alpha1_transformed), fill='blue', alpha=0.5) + 
+  geom_density(aes(alpha2_transformed), fill='red', alpha=0.5) + 
+  geom_vline(xintercept = 0.6, color='blue') + 
+  geom_vline(xintercept = 0.8, color='red') +
+  theme_bw() + facet_wrap(.~n_trial)
+```
+
+```{r}
+ggplot(recovery_df) +
+  geom_point(aes(n_trial, alpha_diff), alpha=0.5) +
+  geom_line(aes(n_trial, y=0.2), color='red') +
+  theme_bw()
+
+ggplot(recovery_df, aes(as.factor(n_trial), alpha_diff)) +
+  geom_violin(aes(as.factor(n_trial), alpha_diff)) +
+  # stat_summary(aes(as.factor(n_trial), alpha_diff), fun=mean, geom="point", shape=23, size=2) +
+  geom_boxplot(aes(as.factor(n_trial), alpha_diff), width=0.1) +
+  geom_line(aes(as.factor(n_trial), y=0.2, group=1), color='red', linetype = "dashed") +
+  theme_bw() + 
+  labs(x="number of trials", y="difference in alpha", title="Difference in alpha between condition 1 and condition 2")
+```
 
 
