@@ -26,7 +26,7 @@ transformed data {
 parameters {
   real alpha1;
   real alpha2;
-  real<lower=0> temperature;
+  real temperature;
 }
 
 model {
@@ -42,8 +42,7 @@ model {
   // normally distributed priors
   target += normal_lpdf(alpha1 | 0, .5);
   target += normal_lpdf(alpha2 | 0, .5);
-  target += normal_lpdf(temperature | 10, 5) -
-    normal_lccdf(0 | 10, 5);
+  target += normal_lpdf(temperature | 0, 1);
   
   
   for (c in 1:2){  // loop over the two conditions
@@ -52,7 +51,7 @@ model {
     
     for (t in 1:trials){  // loop over each trial
     
-      theta = softmax(temperature * values);
+      theta = softmax(inv_logit(temperature)*20 * values);
       target += categorical_lpmf(choice[t, c] | theta);
       
       alpha = inv_logit(alpha1*(1-cond[t, c]) + alpha2*cond[t, c]);
@@ -70,6 +69,7 @@ generated quantities {
   real<lower=0> temperature_prior;
   real<lower=0, upper=1> alpha1_transformed;
   real<lower=0, upper=1> alpha2_transformed;
+  real<lower=0> temperature_transformed;
   real alpha_diff;
 
   real pe;
@@ -86,11 +86,11 @@ generated quantities {
   // normally distributed priors
   alpha1_prior = inv_logit(normal_rng(0, .5));
   alpha2_prior = inv_logit(normal_rng(0, .5));
-  temperature_prior = normal_rng(10, 5) -
-    normal_lb_rng(10, 5, 0);
+  temperature_prior = inv_logit(normal_rng(0, 1)) * 20;
   
   alpha1_transformed = inv_logit(alpha1);
   alpha2_transformed = inv_logit(alpha2);
+  temperature_transformed = inv_logit(temperature)*20;
   
   alpha_diff = alpha2_transformed - alpha1_transformed;
   
