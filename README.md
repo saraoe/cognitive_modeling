@@ -26,4 +26,6 @@ For the text, accompanying the assignment, see description in [the google docs](
 ![change_feedback](assignments/a3/fig/change_feedback_groups.png)
 
 ### Assignment 4:
+See folder ```assignments/a4```.
+For the text, accompanying the assignment, see description in [the google docs](https://docs.google.com/document/d/1j4ZhBgyHOVTARA4uSQwQ5qawJG1r1xR40Pr-ly-hLGY/edit).
 
