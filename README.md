@@ -8,7 +8,8 @@ The code for the Assignments will be in the folder ``assignments/``. The folder 
 | 1 | Describe and motivate one possible verbal model of how the Matching Pennies Task is solved and provide an algorithmic formalization (in R). | W4 |
 | 2 | Analyze the data produced by your study group (or only you if without a study group) in the Matching Pennies Game. Produce a written report of the analyses. | W8 |
 | 3 | Apply a simple bayes and a weighted bayes model to a new task: social conformity. | W10 |
-| 4 | Apply a reinforcement learning model (Rescorla-Wagner is recommended) to simulated data. Identify the number of trials needed to recover parameters. | W13 |
+| 4 | Apply a reinforcement learning model (Rescorla-Wagner is recommended) to simulated data. Identify the number of trials needed to recover parameters. | W12 |
+| 5 | Reflect on our learning process throughout the course | After W12 |
 
 ### Assignment 1:
 See folder ```assignments/a1```.
@@ -28,4 +29,8 @@ For the text, accompanying the assignment, see description in [the google docs](
 ### Assignment 4:
 See folder ```assignments/a4```.
 For the text, accompanying the assignment, see description in [the google docs](https://docs.google.com/document/d/1j4ZhBgyHOVTARA4uSQwQ5qawJG1r1xR40Pr-ly-hLGY/edit).
+![session_diff](assignments/a3/fig/session_diff.png)
+
+### Assignment 5:
+The reflection is in [the google docs](https://docs.google.com/document/d/1mwMT34dkK0EjKFlavax09HF9UIDVFRj9M4PsJy_6A7g/edit#).
 
