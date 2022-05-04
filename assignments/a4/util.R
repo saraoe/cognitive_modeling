@@ -18,3 +18,18 @@ valueUpdate <- function(value, alpha, choice, feedback){
   
   return(updatedValues)
 }
+
+createSessions <- function(len, trials_in_sessions){
+  # takes a length and number of trials in each session
+  # returns a list with number for each session
+  # that can then be added as a column to the dataframe
+  
+  session_list <- c()
+  
+  n_sessions <- len/trials_in_sessions
+  for (session in 1:n_sessions){
+    session_list <- c(session_list, rep(session, trials_in_sessions))
+  }
+  
+  return(session_list)
+}

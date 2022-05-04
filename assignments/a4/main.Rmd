@@ -91,7 +91,7 @@ for (cond in 1:2){
 
 ```{r}
 # save simulated data
-write_csv(d, "simulated_data.csv")
+# write_csv(d, "simulated_data.csv")
 ```
 
 
@@ -126,7 +126,10 @@ data <- list(
   trials = max(d$trial),
   cond = as.matrix(df_cond[,2:3]),
   choice = as.matrix(df_choice[,2:3]),
-  feedback = as.matrix(df_feedback[,2:3])
+  feedback = as.matrix(df_feedback[,2:3]),
+  alpha1_prior_values = c(0, .5),
+  alpha2_prior_values = c(0, .5),
+  temp_prior_values = c(0, 1)
 )
 
 # call stan
@@ -168,12 +171,12 @@ ggplot(draws_df, aes(.iteration, alpha2, group = .chain, color = .chain)) +
 prior posterior update
 ```{r}
 alpha1_update <- ggplot(draws_df) +
-  geom_density(aes(alpha1_transformed), fill='blue', alpha=0.5) + 
+  # geom_density(aes(alpha1_transformed), fill='blue', alpha=0.5) + 
   geom_density(aes(alpha1_prior), fill='red', alpha=0.5) + 
   theme_bw()
 
 alpha2_update <- ggplot(draws_df) +
-  geom_density(aes(alpha2_transformed), fill='blue', alpha=0.5) + 
+  # geom_density(aes(alpha2_transformed), fill='blue', alpha=0.5) + 
   geom_density(aes(alpha2_prior), fill='red', alpha=0.5) + 
   theme_bw()
 
@@ -190,7 +193,9 @@ ggplot(draws_df) +
 
 ## parameter recovery
 ```{r}
-n_trials <- c(100, 500,  1000, 1500, 2000)
+n_trials <- c(100, 500,  1000, 
+              1500, 2000, 2500,
+              3000, 3500, 4000)
 
 recovery_df <- NULL
 
@@ -214,7 +219,10 @@ for (n_trial in n_trials){
     trials = max(tmp_d$trial),
     cond = as.matrix(df_cond[,2:3]),
     choice = as.matrix(df_choice[,2:3]),
-    feedback = as.matrix(df_feedback[,2:3])
+    feedback = as.matrix(df_feedback[,2:3]),
+    alpha1_prior_values = c(0, .5),
+    alpha2_prior_values = c(0, .5),
+    temp_prior_values = c(0, 1)
   )
   
   # call stan
@@ -254,7 +262,9 @@ for (n_trial in n_trials){
 
 ```{r}
 # save data
-write_csv(recovery_df, "recovery.csv")
+# write_csv(recovery_df, "recovery.csv")
+# load data
+recovery_df <- read_csv("recovery.csv")
 ```
 
 Plots
@@ -264,7 +274,8 @@ ggplot(recovery_df) +
   geom_density(aes(alpha2_transformed), fill='red', alpha=0.5) + 
   geom_vline(xintercept = 0.6, color='blue') + 
   geom_vline(xintercept = 0.8, color='red') +
-  theme_bw() + facet_wrap(.~n_trial)
+  theme_bw() + facet_wrap(.~n_trial) + 
+  labs(x='alpha', title='Estimation of alpha parameters by number of trials')
 ```
 
 ```{r}
@@ -280,6 +291,141 @@ ggplot(recovery_df, aes(as.factor(n_trial), alpha_diff)) +
   geom_line(aes(as.factor(n_trial), y=0.2, group=1), color='red', linetype = "dashed") +
   theme_bw() + 
   labs(x="number of trials", y="difference in alpha", title="Difference in alpha between condition 1 and condition 2")
+```
+
+```{r}
+ggplot(recovery_df, aes(as.factor(n_trial), temperature_transformed)) +
+  geom_violin(aes(as.factor(n_trial), temperature_transformed)) +
+  geom_boxplot(aes(as.factor(n_trial), temperature_transformed), width=0.1) +
+  geom_line(aes(as.factor(n_trial), y=0.5, group=1), color='red', linetype = "dashed") +
+  theme_bw() + 
+  labs(x="number of trials", y="temperature", title="Estimation of temperature")
+```
+
+
+Summary statistics
+```{r}
+summary_stats <- recovery_df %>% 
+  group_by(n_trial) %>% 
+  summarise(across(everything(), list(mean = mean, Q1=~quantile(., probs = 0.25),
+                    median=median, Q3=~quantile(., probs = 0.75))))
+
+summary_stats %>% select(starts_with(c("n_tri", "alpha1_transf")))
+summary_stats %>% select(starts_with(c("n_tri", "alpha2_transf")))
+summary_stats %>% select(starts_with(c("n_tri","alpha_diff")))
+summary_stats %>% select(starts_with(c("n_tri", "temperature_transf")))
+```
+
+## Producing iterated design
+```{r}
+# load model
+file <- file.path('reinforcement_learning.stan')
+mod <- cmdstan_model(file, cpp_options = list(stan_threads=TRUE))
+print("Done compiling!")
+```
+
+
+```{r}
+# make session variable
+n_trial <- max(d$trial)
+trials_in_session <- 100
+
+d$session <- c(createSessions(n_trial, trials_in_session), createSessions(n_trial, trials_in_session))
+n_session <- max(d$session)
+d$trials_in_session <- rep(rep(1:trials_in_session, n_session), 2)
+
+# initalize priors
+alpha1_prior = c(0, .5)
+alpha2_prior = c(0, .5)
+temp_prior = c(0, 1)
+
+# initialize df
+session_df <- NULL
+
+n_session <- 2
+
+for (s in 1:n_session){
+
+  temp_d <- d %>% filter(session == s)
+  
+  # make data frames to make into matrices
+  df_cond <- temp_d %>% mutate(cond = condition-1) %>% 
+    subset(select=c(cond, condition, trials_in_session)) %>% 
+    pivot_wider(names_from = condition, values_from = cond)
+  
+  df_choice <- temp_d %>% subset(select=c(choice, condition, trials_in_session)) %>% 
+    pivot_wider(names_from = condition, values_from = choice)
+  
+  df_feedback <- temp_d %>% subset(select=c(feedback, condition, trials_in_session)) %>% 
+    pivot_wider(names_from = condition, values_from = feedback)
+  
+  # data for the model
+  data <- list(
+    trials = max(temp_d$trials_in_session),
+    cond = as.matrix(df_cond[,2:3]),
+    choice = as.matrix(df_choice[,2:3]),
+    feedback = as.matrix(df_feedback[,2:3]),
+    alpha1_prior_values = alpha1_prior,
+    alpha2_prior_values = alpha2_prior,
+    temp_prior_values = temp_prior
+  )
+  
+  # call stan
+  samples <- mod$sample(
+    data = data,
+    seed = 123,
+    chains = 2,
+    parallel_chains = 2,
+    threads_per_chain = 2,
+    iter_warmup = 500,
+    iter_sampling = 1000,
+    refresh = 1000,
+    max_treedepth = 20,
+    adapt_delta = 0.99
+  )
+  
+  # save models
+  tmp_model <- as_draws_df(samples$draws()) %>% select(
+    alpha1,
+    alpha2,
+    alpha1_transformed,
+    alpha2_transformed,
+    alpha_diff,
+    temperature,
+    temperature_transformed,
+    alpha1_prior,
+    alpha2_prior,
+    temperature_prior
+  )
+  
+  tmp_model$session <- rep(s, nrow(tmp_model))
+  
+  if (exists("session_df")){
+    session_df <- rbind(session_df, tmp_model)
+  } else {
+    session_df <- tmp_model
+  }
+  
+  # priors for next round
+  alpha1_prior = c(mean(tmp_model$alpha1), sd(tmp_model$alpha1))
+  alpha2_prior = c(mean(tmp_model$alpha2), sd(tmp_model$alpha2))
+  temp_prior = c(mean(tmp_model$temperature), sd(tmp_model$temperature))
+  
+}
+```
+
+```{r}
+alpha1_update <- ggplot(session_df) +
+  geom_density(aes(alpha1_transformed), fill='blue', alpha=0.5) + 
+  geom_density(aes(alpha1_prior), fill='red', alpha=0.5) + 
+  theme_bw() + facet_wrap(.~session)
+
+alpha2_update <- ggplot(session_df) +
+  geom_density(aes(alpha2_transformed), fill='blue', alpha=0.5) + 
+  geom_density(aes(alpha2_prior), fill='red', alpha=0.5) + 
+  theme_bw() + facet_wrap(.~session)
+
+alpha1_update / alpha2_update
 ```
 
 

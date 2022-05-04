@@ -3,19 +3,15 @@
 // The participant have been exposed for two different trials
 //
 
-functions{
-  real normal_lb_rng(real mu, real sigma, real lb) {
-    real p = normal_cdf(lb | mu, sigma);  // cdf for bounds
-    real u = uniform_rng(p, 1);
-    return (sigma * inv_Phi(u)) + mu;  // inverse cdf for value
-  }
-}
-
 data {
   int<lower=1> trials;
   array[trials, 2] int<lower=0, upper=1> cond;  //binary: 0=cond 1, 1=cond 2
   array[trials, 2] int<lower=1, upper=2> choice;
   array[trials, 2] int<lower=-1, upper=1> feedback;
+  // priors
+  array[2] real alpha1_prior_values;
+  array[2] real alpha2_prior_values;
+  array[2] real temp_prior_values;
 }
 
 transformed data {
@@ -40,9 +36,9 @@ model {
   // target += uniform_lpdf(alpha2 | 0, 1);
   // target += uniform_lpdf(temperature | 0, 20);
   // normally distributed priors
-  target += normal_lpdf(alpha1 | 0, .5);
-  target += normal_lpdf(alpha2 | 0, .5);
-  target += normal_lpdf(temperature | 0, 1);
+  target += normal_lpdf(alpha1 | alpha1_prior_values[1], alpha1_prior_values[2]);
+  target += normal_lpdf(alpha2 | alpha2_prior_values[1], alpha2_prior_values[2]);
+  target += normal_lpdf(temperature | temp_prior_values[1], temp_prior_values[2]);
   
   
   for (c in 1:2){  // loop over the two conditions
@@ -84,9 +80,9 @@ generated quantities {
   // alpha2_prior = uniform_rng(0,1);
   // temperature_prior = uniform_rng(0,20);
   // normally distributed priors
-  alpha1_prior = inv_logit(normal_rng(0, .5));
-  alpha2_prior = inv_logit(normal_rng(0, .5));
-  temperature_prior = inv_logit(normal_rng(0, 1)) * 20;
+  alpha1_prior = inv_logit(normal_rng(alpha1_prior_values[1], alpha1_prior_values[2]));
+  alpha2_prior = inv_logit(normal_rng(alpha2_prior_values[1], alpha2_prior_values[2]));
+  temperature_prior = inv_logit(normal_rng(temp_prior_values[1], temp_prior_values[2])) * 20;
   
   alpha1_transformed = inv_logit(alpha1);
   alpha2_transformed = inv_logit(alpha2);
