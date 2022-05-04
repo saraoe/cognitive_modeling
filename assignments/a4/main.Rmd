@@ -352,8 +352,8 @@ n_session <- max(d$session)
 d$trials_in_session <- rep(rep(1:trials_in_session, n_session), 2)
 
 # initalize priors
-alpha1_prior = c(0, .5)
-alpha2_prior = c(0, .5)
+alpha1_prior = c(0, 1)
+alpha2_prior = c(0, 1)
 temp_prior = c(0, 1)
 
 # initialize df
