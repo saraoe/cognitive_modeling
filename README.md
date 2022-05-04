@@ -29,7 +29,7 @@ For the text, accompanying the assignment, see description in [the google docs](
 ### Assignment 4:
 See folder ```assignments/a4```.
 For the text, accompanying the assignment, see description in [the google docs](https://docs.google.com/document/d/1j4ZhBgyHOVTARA4uSQwQ5qawJG1r1xR40Pr-ly-hLGY/edit).
-![session_diff](assignments/a3/fig/session_diff.png)
+![session_diff](assignments/a4/fig/session_diff.png)
 
 ### Assignment 5:
 The reflection is in [the google docs](https://docs.google.com/document/d/1mwMT34dkK0EjKFlavax09HF9UIDVFRj9M4PsJy_6A7g/edit#).
