@@ -102,7 +102,7 @@ generated quantities {
       theta = softmax(temperature * values);
       log_lik = log_lik + categorical_lpmf(choice[t, c] | theta);
       
-      alpha = alpha1*(1-cond[t, c]) + alpha2*cond[t, c];
+      alpha = inv_logit(alpha1*(1-cond[t, c]) + alpha2*cond[t, c]);
       pe = feedback[t, c] - values[choice[t, c]];
       values[choice[t, c]] = values[choice[t, c]] + alpha*pe;  
     

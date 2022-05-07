@@ -234,8 +234,8 @@ for (n_trial in n_trials){
     cond = as.matrix(df_cond[,2:3]),
     choice = as.matrix(df_choice[,2:3]),
     feedback = as.matrix(df_feedback[,2:3]),
-    alpha1_prior_values = c(0, .5),
-    alpha2_prior_values = c(0, .5),
+    alpha1_prior_values = c(0, 1),
+    alpha2_prior_values = c(0, 1),
     temp_prior_values = c(0, 1)
   )
   
@@ -434,7 +434,7 @@ for (s in 1:n_session){
 
 ```{r}
 # save df
-write_csv(session_df, "session.csv")
+# write_csv(session_df, "session.csv")
 # read df
 session_df <- read_csv("session.csv")
 ```
