@@ -257,11 +257,14 @@ for (n_trial in n_trials){
   tmp_model <- as_draws_df(samples$draws()) %>% select(
     alpha1,
     alpha2,
+    alpha1_prior,
+    alpha2_prior,
     alpha1_transformed,
     alpha2_transformed,
     alpha_diff,
     temperature,
-    temperature_transformed
+    temperature_transformed,
+    temperature_prior
   )
   
   tmp_model$n_trial <- rep(n_trial, nrow(tmp_model))
@@ -291,6 +294,23 @@ ggplot(recovery_df) +
   theme_bw() + facet_wrap(.~n_trial) + 
   labs(x='alpha', title='Estimation of alpha parameters by number of trials')
 ```
+
+```{r}
+alpha1_update <- ggplot(recovery_df) +
+  geom_density(aes(alpha1_transformed), fill='blue', alpha=0.5) + 
+  geom_density(aes(alpha1_prior), fill='red', alpha=0.5) + 
+  geom_vline(xintercept = 0.6, color='black') + 
+  theme_bw()+
+  labs(x="alpha 1")
+alpha2_update <- ggplot(recovery_df) +
+  geom_density(aes(alpha2_transformed), fill='blue', alpha=0.5) + 
+  geom_density(aes(alpha2_prior), fill='red', alpha=0.5) + 
+  geom_vline(xintercept = 0.8, color='black') +
+  theme_bw()+
+  labs(x="alpha 2")
+alpha1_update + labs(title="Prior-posterior update") + alpha2_update
+```
+
 
 ```{r}
 ggplot(recovery_df) +
@@ -341,7 +361,7 @@ print("Done compiling!")
 
 ```{r}
 # we only need 2000 trials
-d <- d %>% filter(trial <= 2500)
+d <- d %>% filter(trial <= 2000)
 
 # make session variable
 n_trial <- max(d$trial)
@@ -454,14 +474,16 @@ session_df %>% group_by(session) %>%
 alpha1_update <- ggplot(session_df) +
   geom_density(aes(alpha1_transformed), fill='blue', alpha=0.5) + 
   geom_density(aes(alpha1_prior), fill='red', alpha=0.5) + 
-  geom_vline(xintercept = 0.6, color='blue') +
-  theme_bw() + facet_wrap(.~session) 
+  geom_vline(xintercept = 0.6, color='black') +
+  theme_bw() + facet_wrap(.~session) + 
+  labs(x = 'alpha 1', title = "Prior-posterior update over sessions")
 
 alpha2_update <- ggplot(session_df) +
   geom_density(aes(alpha2_transformed), fill='blue', alpha=0.5) + 
   geom_density(aes(alpha2_prior), fill='red', alpha=0.5) + 
-  geom_vline(xintercept = 0.8, color='blue') +
-  theme_bw() + facet_wrap(.~session)
+  geom_vline(xintercept = 0.8, color='black') +
+  theme_bw() + facet_wrap(.~session) + 
+  labs(x = 'alpha 2', title = "Prior-posterior update over sessions")
 
 alpha1_update
 alpha2_update
